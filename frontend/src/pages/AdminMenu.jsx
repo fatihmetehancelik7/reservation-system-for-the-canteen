@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMenusByMonth, createMenu, deleteMenu } from '../services/menuService';
 import Card from '../components/Card';
 import Table from '../components/Table';
@@ -7,62 +8,60 @@ import { Trash2 } from 'lucide-react';
 
 const AdminMenu = () => {
     const currentYear = 2026;
+    const queryClient = useQueryClient();
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-    const [menus, setMenus] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState({ tarih: '', yemekListesi: '' });
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        loadData();
-    }, [selectedMonth]);
+    const menusQuery = useQuery({
+        queryKey: ['menus', currentYear, selectedMonth],
+        queryFn: () => getMenusByMonth(currentYear, selectedMonth),
+    });
 
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const data = await getMenusByMonth(currentYear, selectedMonth);
-            setMenus(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const createMenuMutation = useMutation({
+        mutationFn: createMenu,
+        onSuccess: () => {
+            setFormData({ tarih: '', yemekListesi: '' });
+            queryClient.invalidateQueries({ queryKey: ['menus'] });
+        },
+        onError: (err) => {
+            setError(err.response?.data?.error || 'Hata oluştu');
+        },
+    });
+
+    const deleteMenuMutation = useMutation({
+        mutationFn: deleteMenu,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['menus'] });
+        },
+        onError: () => {
+            alert('Hata');
+        },
+    });
 
     const handleInputChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
         setError('');
-        try {
-            await createMenu(formData);
-            setFormData({ tarih: '', yemekListesi: '' });
-            loadData();
-        } catch (err) {
-            setError(err.response?.data?.error || 'Hata oluştu');
-        }
+        createMenuMutation.mutate(formData);
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = (id) => {
         if (!window.confirm('Silmek istediğinize emin misiniz?')) return;
-        try {
-            await deleteMenu(id);
-            loadData();
-        } catch (err) {
-            alert('Hata');
-        }
+        deleteMenuMutation.mutate(id);
     };
 
     const columns = [
-        { field: 'gun', header: 'Gün', render: (row) => `${row.gun} ${new Date(row.yil, row.ay-1, 1).toLocaleDateString('tr-TR', {month: 'long'})}` },
+        { field: 'gun', header: 'Gün', render: (row) => `${row.gun} ${new Date(row.yil, row.ay - 1, 1).toLocaleDateString('tr-TR', { month: 'long' })}` },
         { field: 'yemekListesi', header: 'Yemek Listesi' },
         {
             field: 'actions',
             header: 'İşlem',
             render: (row) => (
-                <button className="btn btn-danger" onClick={() => handleDelete(row.id)}>
+                <button className="btn btn-danger" onClick={() => handleDelete(row.id)} disabled={deleteMenuMutation.isPending}>
                     <Trash2 size={16} />
                 </button>
             )
@@ -79,7 +78,9 @@ const AdminMenu = () => {
                     <form onSubmit={handleSubmit}>
                         <FormInput label="Tarih" type="date" name="tarih" value={formData.tarih} onChange={handleInputChange} required />
                         <FormInput label="Yemek Listesi (Virgülle ayırın)" name="yemekListesi" value={formData.yemekListesi} onChange={handleInputChange} required placeholder="Çorba, Tavuk, Pilav" />
-                        <button type="submit" className="btn btn-primary mt-4" style={{ width: '100%' }}>Kaydet</button>
+                        <button type="submit" className="btn btn-primary mt-4" style={{ width: '100%' }} disabled={createMenuMutation.isPending}>
+                            {createMenuMutation.isPending ? 'Kaydediliyor...' : 'Kaydet'}
+                        </button>
                     </form>
                 </Card>
 
@@ -92,7 +93,7 @@ const AdminMenu = () => {
                             ))}
                         </select>
                     </div>
-                    {loading ? <p>Yükleniyor...</p> : <Table columns={columns} data={menus} />}
+                    {menusQuery.isLoading ? <p>Yükleniyor...</p> : <Table columns={columns} data={menusQuery.data ?? []} />}
                 </Card>
             </div>
         </div>

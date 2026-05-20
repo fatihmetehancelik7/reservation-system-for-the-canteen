@@ -1,4 +1,3 @@
-import React from 'react';
 
 const Table = ({ columns, data }) => {
     if (!data || data.length === 0) {

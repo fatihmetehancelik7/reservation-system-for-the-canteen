@@ -1,62 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { getMenusByMonth } from '../services/menuService';
 import { createReservation, updateReservation, getUserReservations } from '../services/reservationService';
 import { getAllHolidays } from '../services/holidayService';
 import Card from '../components/Card';
-import { Check, X, CreditCard, AlertCircle } from 'lucide-react';
+import { Check, CreditCard } from 'lucide-react';
 
 const MonthlySelection = () => {
     const { user } = useAuth();
+    const queryClient = useQueryClient();
     const currentYear = 2026;
-    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
-    const [menus, setMenus] = useState([]);
-    const [holidays, setHolidays] = useState([]);
-    const [selectedDays, setSelectedDays] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [selectedDaysByMonth, setSelectedDaysByMonth] = useState({});
     const [error, setError] = useState('');
-    const [existingReservation, setExistingReservation] = useState(null);
 
-    useEffect(() => {
-        loadData();
-    }, [selectedMonth]);
+    const [menusQuery, holidaysQuery, reservationsQuery] = useQueries({
+        queries: [
+            { queryKey: ['menus', currentYear, selectedMonth], queryFn: () => getMenusByMonth(currentYear, selectedMonth) },
+            { queryKey: ['holidays'], queryFn: getAllHolidays },
+            {
+                queryKey: ['reservations', 'user', user?.id],
+                queryFn: () => getUserReservations(user.id),
+                enabled: !!user?.id,
+            },
+        ],
+    });
 
-    const loadData = async () => {
-        setLoading(true);
-        setError('');
-        setSelectedDays([]);
-        setExistingReservation(null);
-        try {
-            const [menusData, holidaysData, reservationsData] = await Promise.all([
-                getMenusByMonth(currentYear, selectedMonth),
-                getAllHolidays(),
-                getUserReservations(user.id)
-            ]);
-            setMenus(menusData);
-            setHolidays(holidaysData.map(h => h.tarih));
-            
-            const existing = reservationsData.find(r => r.yil === currentYear && r.ay === selectedMonth);
-            if (existing) {
-                setExistingReservation(existing);
-                if (existing.secilenGunler) {
-                    setSelectedDays(existing.secilenGunler);
-                }
-            }
-        } catch (err) {
-            console.error(err);
-            setError('Veriler yüklenirken bir hata oluştu.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const menus = menusQuery.data ?? [];
+    const holidays = useMemo(() => (holidaysQuery.data ?? []).map(h => h.tarih), [holidaysQuery.data]);
+    const reservations = useMemo(() => reservationsQuery.data ?? [], [reservationsQuery.data]);
+    const existingReservation = useMemo(
+        () => reservations.find(r => r.yil === currentYear && r.ay === selectedMonth) ?? null,
+        [reservations, selectedMonth]
+    );
+    const selectedDays = selectedDaysByMonth[selectedMonth] ?? existingReservation?.secilenGunler ?? [];
+    const loading = menusQuery.isLoading || holidaysQuery.isLoading || reservationsQuery.isLoading;
 
-    // Ayın günlerini oluştur (Sadece hafta içi)
+    const createReservationMutation = useMutation({
+        mutationFn: createReservation,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reservations', 'user', user?.id] });
+        },
+    });
+
+    const updateReservationMutation = useMutation({
+        mutationFn: ({ id, data }) => updateReservation(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reservations', 'user', user?.id] });
+        },
+    });
+
     const getDaysInMonth = () => {
         const date = new Date(currentYear, selectedMonth - 1, 1);
         const days = [];
         while (date.getMonth() === selectedMonth - 1) {
             const dayOfWeek = date.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Hafta sonu hariç
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
                 const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
                 const dateStr = localDate.toISOString().split('T')[0];
                 days.push({
@@ -75,42 +75,52 @@ const MonthlySelection = () => {
     const toggleDaySelection = (dateStr, isHoliday, hasMenu) => {
         if (isHoliday || !hasMenu) return;
 
-        // Geçmişteki veya bugünkü rezervasyonlar değiştirilemez
         const now = new Date();
         const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
         const todayStr = localNow.toISOString().split('T')[0];
-        
+
         if (existingReservation && dateStr <= todayStr) {
             return;
         }
 
-        setSelectedDays(prev => {
-            if (prev.includes(dateStr)) {
-                return prev.filter(d => d !== dateStr);
-            } else {
-                return [...prev, dateStr];
-            }
+        setSelectedDaysByMonth(prev => {
+            const currentSelection = prev[selectedMonth] ?? existingReservation?.secilenGunler ?? [];
+            const nextSelection = currentSelection.includes(dateStr)
+                ? currentSelection.filter(d => d !== dateStr)
+                : [...currentSelection, dateStr];
+
+            return {
+                ...prev,
+                [selectedMonth]: nextSelection,
+            };
         });
+    };
+
+    const handleMonthChange = (e) => {
+        setError('');
+        setSelectedMonth(Number(e.target.value));
     };
 
     const handlePayment = async () => {
         if (selectedDays.length === 0 && !existingReservation) return;
-        
+
+        setError('');
         try {
             if (existingReservation) {
-                // Güncelleme Modu
-                if (!window.confirm(`Rezervasyonunuzu güncellemek istediğinize emin misiniz?`)) return;
-                await updateReservation(existingReservation.id, {
-                    userId: user.id,
-                    yil: currentYear,
-                    ay: selectedMonth,
-                    secilenGunler: selectedDays
+                if (!window.confirm('Rezervasyonunuzu güncellemek istediğinize emin misiniz?')) return;
+                await updateReservationMutation.mutateAsync({
+                    id: existingReservation.id,
+                    data: {
+                        userId: user.id,
+                        yil: currentYear,
+                        ay: selectedMonth,
+                        secilenGunler: selectedDays
+                    },
                 });
                 alert('Rezervasyonunuz başarıyla güncellendi!');
             } else {
-                // Yeni Kayıt
                 if (!window.confirm(`Seçilen ${selectedDays.length} gün için toplam ${selectedDays.length * 100} TL ödeme yapılacaktır. Onaylıyor musunuz?`)) return;
-                await createReservation({
+                await createReservationMutation.mutateAsync({
                     userId: user.id,
                     yil: currentYear,
                     ay: selectedMonth,
@@ -118,7 +128,6 @@ const MonthlySelection = () => {
                 });
                 alert('Ödeme başarıyla alındı ve rezervasyonlarınız oluşturuldu!');
             }
-            loadData();
         } catch (err) {
             setError(err.response?.data?.error || 'İşlem başarısız.');
         }
@@ -129,6 +138,7 @@ const MonthlySelection = () => {
     const oldTotalPrice = existingReservation ? existingReservation.toplamTutar : 0;
     const totalPrice = selectedDays.length * 100;
     const difference = totalPrice - oldTotalPrice;
+    const isSaving = createReservationMutation.isPending || updateReservationMutation.isPending;
 
     return (
         <div className="fade-in">
@@ -137,11 +147,11 @@ const MonthlySelection = () => {
             <Card className="mb-4">
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <label style={{ fontWeight: 'bold' }}>Ay Seçimi (2026):</label>
-                    <select 
-                        className="form-control" 
+                    <select
+                        className="form-control"
                         style={{ width: '200px' }}
-                        value={selectedMonth} 
-                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        value={selectedMonth}
+                        onChange={handleMonthChange}
                     >
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                             <option key={m} value={m}>{new Date(2026, m - 1, 1).toLocaleDateString('tr-TR', { month: 'long' })}</option>
@@ -161,35 +171,33 @@ const MonthlySelection = () => {
                             {days.map(day => {
                                 const isSelected = selectedDays.includes(day.dateStr);
                                 const isClickable = !day.isHoliday && day.menu;
-                                
                                 const now = new Date();
                                 const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
                                 const todayStr = localNow.toISOString().split('T')[0];
-                                
                                 const isPastOrToday = day.dateStr <= todayStr;
                                 const isLocked = isUpdateMode && isPastOrToday;
-                                
+
                                 let bg = '#F9FAFB';
                                 let border = '1px solid #E5E7EB';
                                 let opacity = 1;
 
                                 if (day.isHoliday) {
-                                    bg = '#FEE2E2'; // red
+                                    bg = '#FEE2E2';
                                     opacity = 0.6;
                                 } else if (!day.menu) {
-                                    bg = '#F3F4F6'; // gray
+                                    bg = '#F3F4F6';
                                     opacity = 0.6;
                                 } else if (isSelected) {
-                                    bg = '#EEF2FF'; // primary light
+                                    bg = '#EEF2FF';
                                     border = '2px solid var(--primary)';
                                 }
-                                
+
                                 if (isLocked) {
                                     opacity = 0.5;
                                 }
 
                                 return (
-                                    <div 
+                                    <div
                                         key={day.dateStr}
                                         onClick={() => !isLocked && toggleDaySelection(day.dateStr, day.isHoliday, day.menu)}
                                         style={{
@@ -206,7 +214,7 @@ const MonthlySelection = () => {
                                     >
                                         <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{day.dayNum}</div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{day.dayName}</div>
-                                        
+
                                         <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
                                             {day.isHoliday ? 'Tatil' : day.menu ? '100 TL' : 'Menü Yok'}
                                         </div>
@@ -217,7 +225,7 @@ const MonthlySelection = () => {
                                         )}
                                         {isLocked && (
                                             <div style={{ position: 'absolute', top: '5px', right: '5px', color: '#9CA3AF' }}>
-                                                🔒
+                                                Kilitli
                                             </div>
                                         )}
                                     </div>
@@ -232,7 +240,7 @@ const MonthlySelection = () => {
                                 <span>Seçilen Gün:</span>
                                 <strong>{selectedDays.length}</strong>
                             </div>
-                            
+
                             {isUpdateMode && (
                                 <>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', color: 'var(--text-muted)' }}>
@@ -247,20 +255,20 @@ const MonthlySelection = () => {
                                     {difference > 0 && <small style={{ color: '#EF4444' }}>* Ek ödeme alınacaktır</small>}
                                 </>
                             )}
-                            
+
                             <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', color: 'var(--primary)', fontWeight: 'bold' }}>
                                 <span>Yeni Toplam:</span>
                                 <span>{totalPrice} TL</span>
                             </div>
 
-                            <button 
-                                className="btn btn-primary" 
+                            <button
+                                className="btn btn-primary"
                                 style={{ width: '100%', marginTop: '1rem', padding: '1rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                disabled={selectedDays.length === 0}
+                                disabled={selectedDays.length === 0 || isSaving}
                                 onClick={handlePayment}
                             >
                                 <CreditCard size={20} />
-                                {isUpdateMode ? 'Güncelle' : (totalPrice > 0 ? `${totalPrice} TL Öde` : 'Seçim Yapın')}
+                                {isSaving ? 'İşleniyor...' : isUpdateMode ? 'Güncelle' : (totalPrice > 0 ? `${totalPrice} TL Öde` : 'Seçim Yapın')}
                             </button>
                         </div>
                     </Card>

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { getAllReservations } from '../services/reservationService';
 import { getAllRefunds } from '../services/holidayService';
 import Card from '../components/Card';
@@ -6,30 +7,17 @@ import Table from '../components/Table';
 import { Users, DollarSign, RefreshCcw, AlertTriangle } from 'lucide-react';
 
 const AdminReservations = () => {
-    const [reservations, setReservations] = useState([]);
-    const [refunds, setRefunds] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('reservations');
+    const [reservationsQuery, refundsQuery] = useQueries({
+        queries: [
+            { queryKey: ['reservations', 'all'], queryFn: getAllReservations },
+            { queryKey: ['refunds', 'all'], queryFn: getAllRefunds },
+        ],
+    });
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const [resData, refundData] = await Promise.all([
-                getAllReservations(),
-                getAllRefunds()
-            ]);
-            setReservations(resData);
-            setRefunds(refundData);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const reservations = reservationsQuery.data ?? [];
+    const refunds = refundsQuery.data ?? [];
+    const loading = reservationsQuery.isLoading || refundsQuery.isLoading;
 
     const reservationColumns = [
         { field: 'islemTarihi', header: 'İşlem Tarihi', render: (row) => new Date(row.islemTarihi).toLocaleString('tr-TR') },
@@ -105,7 +93,6 @@ const AdminReservations = () => {
         <div className="fade-in">
             <h1 className="page-title">Tüm Ödemeler ve Rezervasyonlar</h1>
 
-            {/* Stats */}
             <div className="grid-2" style={{ marginBottom: '2rem' }}>
                 <Card>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -128,7 +115,7 @@ const AdminReservations = () => {
                             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{totalRevenue - totalRefunded} TL</div>
                             {totalRefunded > 0 && (
                                 <div style={{ fontSize: '0.8rem', color: '#EF4444' }}>
-                                    ({totalRevenue} TL toplam – {totalRefunded} TL iade)
+                                    ({totalRevenue} TL toplam - {totalRefunded} TL iade)
                                 </div>
                             )}
                         </div>
@@ -136,7 +123,6 @@ const AdminReservations = () => {
                 </Card>
             </div>
 
-            {/* Refund alert banner */}
             {refunds.length > 0 && (
                 <div style={{
                     background: '#FEF3C7',
@@ -157,7 +143,6 @@ const AdminReservations = () => {
                 </div>
             )}
 
-            {/* Tabs */}
             <Card>
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
                     <button style={tabStyle('reservations')} onClick={() => setActiveTab('reservations')}>

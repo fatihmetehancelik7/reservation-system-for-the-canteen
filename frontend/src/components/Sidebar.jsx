@@ -1,4 +1,3 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, CalendarDays, Wallet, CalendarClock, Utensils, Users } from 'lucide-react';
