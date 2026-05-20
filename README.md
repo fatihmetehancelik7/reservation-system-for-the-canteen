@@ -1,50 +1,68 @@
-# Yemekhane Rezervasyon Sistemi 🍽️
+# Yemekhane Rezervasyon Sistemi
 
-Kurumsal yemekhane için aylık rezervasyon ve ödeme takip sistemi.
+Yemekhane Rezervasyon Sistemi, kurumsal yemekhaneler için geliştirilmiş tam yığınlı bir rezervasyon ve ödeme takip uygulamasıdır. Sistem; aylık yemek rezervasyonlarını, günlük ödeme takibini, tatil günü yönetimini ve tatil ilan edilen günler için otomatik iade kaydı oluşturmayı destekler.
+
+Proje, Java 17 ve Spring Boot tabanlı bir backend ile React + Vite tabanlı bir frontend mimarisi üzerine kuruludur.
+
+---
 
 ## Özellikler
 
-- 📅 Aylık gün bazlı rezervasyon
-- 💳 Toplu ödeme (100 TL/gün)
-- 🗓️ Tatil günü yönetimi
-- 💸 Otomatik iade kaydı (tatil ilan edildiğinde)
-- 👨‍💼 Admin paneli (menü, tatil, rezervasyon yönetimi)
-- 👤 Kullanıcı paneli (rezervasyon, ödeme, iade takibi)
+### Kullanıcı Paneli
 
-## Teknolojiler
+Kullanıcılar sistem üzerinden aylık yemek rezervasyonlarını gün bazında yönetebilir. Rezervasyon yapılan günler için ödeme durumu takip edilebilir; tatil ilan edilen günlerde ise ilgili iade kayıtları görüntülenebilir.
+
+Temel kullanıcı işlemleri:
+
+- Aylık ve günlük rezervasyon görüntüleme
+- Gün bazlı yemek rezervasyonu oluşturma
+- Ödeme durumunu takip etme
+- İade kayıtlarını görüntüleme
+
+### Admin Paneli
+
+Admin kullanıcıları, yemekhane operasyonlarını merkezi olarak yönetebilir. Menü yönetimi, tatil günü tanımlama ve rezervasyon kontrolü admin paneli üzerinden yapılır.
+
+Temel admin işlemleri:
+
+- Menü yönetimi
+- Tatil günü yönetimi
+- Rezervasyon kayıtlarını izleme
+- Tatil ilan edilen günler için otomatik iade sürecini yönetme
+
+---
+
+## İş Mantığı
+
+Sistem, aylık yemek rezervasyonu mantığı üzerine kuruludur. Kullanıcılar belirli günler için yemek rezervasyonu yapar ve her rezervasyon günü için ödeme takibi oluşturulur.
+
+README’de ödeme tutarı günlük **100 TL** olarak belirtilmiştir. Bir gün sonradan tatil olarak işaretlenirse, sistem o güne ait rezervasyonlar için otomatik iade kaydı oluşturur. Bu yapı, manuel takip yükünü azaltır ve ödeme/iade süreçlerinin daha izlenebilir olmasını sağlar.
+
+---
+
+## Teknoloji Yığını
 
 | Katman | Teknoloji |
-|--------|-----------|
-| Backend | Java 17, Spring Boot 3, Spring Data JPA |
-| Veritabanı | H2 (in-memory) |
-| Frontend | React 18, Vite, Lucide Icons |
-| Build | Apache Maven 3.9.6 |
+|---|---|
+| Backend | Java 17, Spring Boot 3 |
+| API | Spring Web |
+| Veri Erişimi | Spring Data JPA |
+| Doğrulama | Spring Validation |
+| Veritabanı | H2 Database |
+| Frontend | React 18, Vite |
+| UI / İkonlar | Lucide React |
+| HTTP Client | Axios |
+| Routing | React Router DOM |
+| Build Aracı | Maven, npm |
 
-## Kurulum
+---
 
-### Backend
+## Proje Yapısı
 
-```bash
-cd backend
-./maven/apache-maven-3.9.6/bin/mvn spring-boot:run
-```
-
-> Sunucu: http://localhost:8080
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-> Uygulama: http://localhost:5173
-
-## Varsayılan Kullanıcılar
-
-| E-posta | Şifre | Rol |
-|---------|-------|-----|
-| admin@yemekhane.com | 123456 | Admin |
-| kullanici@yemekhane.com | 123456 | Kullanıcı |
-| ahmet@yemekhane.com | 123456 | Kullanıcı |
+```text
+reservation-system-for-the-canteen/
+├── backend/        # Spring Boot backend servisi
+├── frontend/       # React + Vite frontend uygulaması
+├── seed.js         # Başlangıç verisi / seed işlemleri için script
+├── README.md       # Proje dokümantasyonu
+└── .gitignore
