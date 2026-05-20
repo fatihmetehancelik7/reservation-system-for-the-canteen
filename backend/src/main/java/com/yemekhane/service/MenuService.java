@@ -3,8 +3,9 @@ package com.yemekhane.service;
 import com.yemekhane.dto.MonthlyMenuDto;
 import com.yemekhane.entity.MonthlyMenu;
 import com.yemekhane.exception.BusinessException;
-import com.yemekhane.repository.MonthlyMenuRepository;
 import com.yemekhane.repository.HolidayRepository;
+import com.yemekhane.repository.MonthlyMenuRepository;
+import com.yemekhane.repository.ReservationDayRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ public class MenuService {
 
     private final MonthlyMenuRepository menuRepository;
     private final HolidayRepository holidayRepository;
+    private final ReservationDayRepository reservationDayRepository;
 
     public List<MonthlyMenuDto> getMenusByMonth(Integer yil, Integer ay) {
         return menuRepository.findByYilAndAyOrderByGunAsc(yil, ay).stream()
@@ -55,6 +57,11 @@ public class MenuService {
     }
 
     public void deleteMenu(Long id) {
+        MonthlyMenu menu = menuRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Menü bulunamadı."));
+        if (reservationDayRepository.existsByTarih(menu.getTarih())) {
+            throw new BusinessException("Bu güne ait rezervasyon bulunduğu için menü silinemez.");
+        }
         menuRepository.deleteById(id);
     }
 }

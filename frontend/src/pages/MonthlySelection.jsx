@@ -48,6 +48,7 @@ const MonthlySelection = () => {
         mutationFn: ({ id, data }) => updateReservation(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reservations', 'user', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['refunds', 'user', user?.id] });
         },
     });
 
@@ -107,7 +108,10 @@ const MonthlySelection = () => {
         setError('');
         try {
             if (existingReservation) {
-                if (!window.confirm('Rezervasyonunuzu güncellemek istediğinize emin misiniz?')) return;
+                const message = selectedDays.length === 0
+                    ? 'Bu aya ait tüm gelecek gün rezervasyonlarınızı iptal etmek istediğinize emin misiniz?'
+                    : 'Rezervasyonunuzu güncellemek istediğinize emin misiniz?';
+                if (!window.confirm(message)) return;
                 await updateReservationMutation.mutateAsync({
                     id: existingReservation.id,
                     data: {
@@ -162,7 +166,11 @@ const MonthlySelection = () => {
 
             {error && <div className="alert" style={{ background: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>{error}</div>}
 
-            {loading ? (
+            {menusQuery.isError || holidaysQuery.isError || reservationsQuery.isError ? (
+                <div className="alert" style={{ background: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                    Takvim verileri yüklenirken bir hata oluştu.
+                </div>
+            ) : loading ? (
                 <p>Takvim yükleniyor...</p>
             ) : (
                 <div className="grid-2" style={{ gridTemplateColumns: '2fr 1fr' }}>
@@ -264,11 +272,11 @@ const MonthlySelection = () => {
                             <button
                                 className="btn btn-primary"
                                 style={{ width: '100%', marginTop: '1rem', padding: '1rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                disabled={selectedDays.length === 0 || isSaving}
+                                disabled={(!isUpdateMode && selectedDays.length === 0) || isSaving}
                                 onClick={handlePayment}
                             >
                                 <CreditCard size={20} />
-                                {isSaving ? 'İşleniyor...' : isUpdateMode ? 'Güncelle' : (totalPrice > 0 ? `${totalPrice} TL Öde` : 'Seçim Yapın')}
+                                {isSaving ? 'İşleniyor...' : isUpdateMode ? (selectedDays.length === 0 ? 'Tümünü İptal Et' : 'Güncelle') : (totalPrice > 0 ? `${totalPrice} TL Öde` : 'Seçim Yapın')}
                             </button>
                         </div>
                     </Card>

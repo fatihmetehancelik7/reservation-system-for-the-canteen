@@ -9,4 +9,5 @@ public interface ReservationDayRepository extends JpaRepository<ReservationDay, 
     List<ReservationDay> findByUserIdAndTarihBetween(Long userId, LocalDate baslangic, LocalDate bitis);
     List<ReservationDay> findByMonthlyReservationId(Long monthlyReservationId);
     List<ReservationDay> findByTarih(LocalDate tarih);
+    boolean existsByTarih(LocalDate tarih);
 }

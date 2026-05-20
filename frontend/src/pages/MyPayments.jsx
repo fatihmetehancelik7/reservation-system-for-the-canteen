@@ -169,7 +169,9 @@ const MyPayments = () => {
                     </button>
                 </div>
 
-                {loading ? (
+                {reservationsQuery.isError || refundsQuery.isError ? (
+                    <div className="text-danger">Ödeme ve iade verileri yüklenirken hata oluştu.</div>
+                ) : loading ? (
                     <p>Yükleniyor...</p>
                 ) : activeTab === 'payments' ? (
                     <Table columns={paymentColumns} data={reservations} />

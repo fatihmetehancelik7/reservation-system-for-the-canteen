@@ -93,7 +93,13 @@ const AdminMenu = () => {
                             ))}
                         </select>
                     </div>
-                    {menusQuery.isLoading ? <p>Yükleniyor...</p> : <Table columns={columns} data={menusQuery.data ?? []} />}
+                    {menusQuery.isError ? (
+                        <div className="text-danger">Menüler yüklenirken hata oluştu.</div>
+                    ) : menusQuery.isLoading ? (
+                        <p>Yükleniyor...</p>
+                    ) : (
+                        <Table columns={columns} data={menusQuery.data ?? []} />
+                    )}
                 </Card>
             </div>
         </div>

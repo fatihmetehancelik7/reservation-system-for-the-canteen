@@ -86,7 +86,13 @@ const AdminHolidays = () => {
                 </Card>
 
                 <Card title="Tanımlı Tatil Günleri">
-                    {holidaysQuery.isLoading ? <p>Yükleniyor...</p> : <Table columns={columns} data={holidaysQuery.data ?? []} />}
+                    {holidaysQuery.isError ? (
+                        <div className="text-danger">Tatil günleri yüklenirken hata oluştu.</div>
+                    ) : holidaysQuery.isLoading ? (
+                        <p>Yükleniyor...</p>
+                    ) : (
+                        <Table columns={columns} data={holidaysQuery.data ?? []} />
+                    )}
                 </Card>
             </div>
         </div>

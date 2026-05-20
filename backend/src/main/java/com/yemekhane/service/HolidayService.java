@@ -54,6 +54,9 @@ public class HolidayService {
     private void processRefundsForDate(LocalDate tarih, String aciklama) {
         List<ReservationDay> affectedDays = reservationDayRepository.findByTarih(tarih);
         for (ReservationDay day : affectedDays) {
+            if (refundRecordRepository.existsByUserIdAndTatilTarihi(day.getUser().getId(), tarih)) {
+                continue;
+            }
             RefundRecord refund = new RefundRecord();
             refund.setUser(day.getUser());
             refund.setTatilTarihi(tarih);
@@ -64,6 +67,9 @@ public class HolidayService {
     }
 
     public void deleteHoliday(Long id) {
+        if (!holidayRepository.existsById(id)) {
+            throw new BusinessException("Tatil günü bulunamadı.");
+        }
         holidayRepository.deleteById(id);
     }
 

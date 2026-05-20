@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { queryClient } from './lib/queryClient';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import RouteError from './components/RouteError';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import MonthlySelection from './pages/MonthlySelection';
@@ -48,10 +49,12 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+    errorElement: <RouteError />,
   },
   {
     path: '/',
     element: <ProtectedRoute />,
+    errorElement: <RouteError />,
     children: [
       {
         element: <Layout />,
