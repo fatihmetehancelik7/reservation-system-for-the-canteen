@@ -20,6 +20,11 @@ export const updateReservation = async (id, data) => {
     return response.data;
 };
 
+export const processBulkReservations = async (data) => {
+    const response = await api.post('/reservations/bulk', data);
+    return response.data;
+};
+
 export const getUserTransactions = async (userId) => {
     const response = await api.get(`/transactions/user/${userId}`);
     return response.data;

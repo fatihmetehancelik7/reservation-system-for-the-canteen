@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { getMenusByMonth } from '../services/menuService';
-import { createReservation, updateReservation, getUserReservations } from '../services/reservationService';
+import { processBulkReservations, getUserReservations } from '../services/reservationService';
 import { getAllHolidays } from '../services/holidayService';
 import Card from '../components/Card';
 import { Check, CreditCard } from 'lucide-react';
@@ -61,16 +61,8 @@ const MonthlySelection = () => {
         .filter(dateStr => !holidays.includes(dateStr));
     const loading = menusQuery.isLoading || holidaysQuery.isLoading || reservationsQuery.isLoading;
 
-    const createReservationMutation = useMutation({
-        mutationFn: createReservation,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['reservations', 'user', user?.id] });
-            queryClient.invalidateQueries({ queryKey: ['transactions', 'user', user?.id] });
-        },
-    });
-
-    const updateReservationMutation = useMutation({
-        mutationFn: ({ id, data }) => updateReservation(id, data),
+    const bulkReservationMutation = useMutation({
+        mutationFn: processBulkReservations,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reservations', 'user', user?.id] });
             queryClient.invalidateQueries({ queryKey: ['transactions', 'user', user?.id] });
@@ -204,21 +196,21 @@ const MonthlySelection = () => {
         setError('');
         setIsProcessing(true);
         try {
-            for (const item of changedMonths) {
+            const selections = changedMonths.map(item => {
                 const daysToSend = (item.pendingDays ?? []).filter(d => !holidays.includes(d));
-                if (item.existing) {
-                    await updateReservationMutation.mutateAsync({
-                        id: item.existing.id,
-                        data: { userId: user.id, yil: currentYear, ay: item.month, secilenGunler: daysToSend }
-                    });
-                } else {
-                    if (daysToSend.length > 0) {
-                        await createReservationMutation.mutateAsync({
-                            userId: user.id, yil: currentYear, ay: item.month, secilenGunler: daysToSend
-                        });
-                    }
-                }
-            }
+                return {
+                    ay: item.month,
+                    secilenGunler: daysToSend,
+                    existingReservationId: item.existing ? item.existing.id : null
+                };
+            });
+
+            await bulkReservationMutation.mutateAsync({
+                userId: user.id,
+                yil: currentYear,
+                selections: selections
+            });
+
             setSelectedDaysByMonth({});
             alert('İşlemleriniz başarıyla tamamlandı!');
         } catch (err) {

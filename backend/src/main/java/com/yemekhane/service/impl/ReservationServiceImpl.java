@@ -154,6 +154,110 @@ public class ReservationServiceImpl implements ReservationService {
         return MonthlyReservationDto.fromEntity(savedReservation);
     }
 
+    @Override
+    @Transactional
+    public List<MonthlyReservationDto> processBulkReservations(com.yemekhane.dto.BulkReservationRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new BusinessException("Kullanıcı bulunamadı."));
+
+        if (request.getYil() != activeYear) {
+            throw new BusinessException("Sistem yalnızca " + activeYear + " yılı için çalışmaktadır.");
+        }
+
+        int totalOldDays = 0;
+        int totalNewDays = 0;
+        List<LocalDate> allNetCancelledDates = new java.util.ArrayList<>();
+        List<MonthlyReservation> savedReservations = new java.util.ArrayList<>();
+
+        for (com.yemekhane.dto.BulkReservationRequest.MonthSelection selection : request.getSelections()) {
+            totalNewDays += selection.getSecilenGunler().size();
+            
+            if (selection.getExistingReservationId() != null) {
+                MonthlyReservation reservation = reservationRepository.findById(selection.getExistingReservationId())
+                        .orElseThrow(() -> new BusinessException("Rezervasyon bulunamadı."));
+                
+                if (!reservation.getUser().getId().equals(request.getUserId())) {
+                    throw new BusinessException("Rezervasyon kullanıcı bilgisi ile istek kullanıcı bilgisi uyuşmuyor.");
+                }
+
+                int oldDays = reservation.getSecilenGunSayisi() != null ? reservation.getSecilenGunSayisi() : 0;
+                totalOldDays += oldDays;
+
+                Set<LocalDate> requestedDates = new HashSet<>(selection.getSecilenGunler());
+                List<LocalDate> cancelledDates = reservation.getReservationDays() != null ? 
+                        reservation.getReservationDays().stream()
+                        .map(ReservationDay::getTarih)
+                        .filter(date -> !requestedDates.contains(date))
+                        .filter(date -> date.isAfter(LocalDate.now(ZoneId.of(timezone))))
+                        .collect(Collectors.toList()) : new java.util.ArrayList<>();
+                allNetCancelledDates.addAll(cancelledDates);
+                
+                ReservationRequest tempReq = new ReservationRequest();
+                tempReq.setUserId(user.getId());
+                tempReq.setYil(request.getYil());
+                tempReq.setAy(selection.getAy());
+                tempReq.setSecilenGunler(selection.getSecilenGunler());
+                validateReservationRequest(tempReq, reservation);
+                applyReservationValues(reservation, tempReq);
+
+                if (reservation.getReservationDays() == null) {
+                    reservation.setReservationDays(new java.util.ArrayList<>());
+                } else {
+                    reservation.getReservationDays().clear();
+                }
+                reservation.getReservationDays().addAll(buildReservationDays(tempReq, reservation, user));
+                savedReservations.add(reservationRepository.save(reservation));
+            } else {
+                ReservationRequest tempReq = new ReservationRequest();
+                tempReq.setUserId(user.getId());
+                tempReq.setYil(request.getYil());
+                tempReq.setAy(selection.getAy());
+                tempReq.setSecilenGunler(selection.getSecilenGunler());
+                validateReservationRequest(tempReq, null);
+
+                MonthlyReservation reservation = new MonthlyReservation();
+                reservation.setUser(user);
+                applyReservationValues(reservation, tempReq);
+                List<ReservationDay> days = buildReservationDays(tempReq, reservation, user);
+                reservation.setReservationDays(days);
+                savedReservations.add(reservationRepository.save(reservation));
+            }
+        }
+
+        int globalDiffDays = totalNewDays - totalOldDays;
+
+        if (globalDiffDays < 0) {
+            int netCancelledCount = Math.abs(globalDiffDays);
+            List<LocalDate> datesToRefund = allNetCancelledDates.stream()
+                    .limit(netCancelledCount)
+                    .collect(Collectors.toList());
+                    
+            for (LocalDate date : datesToRefund) {
+                RefundRecord refund = new RefundRecord();
+                refund.setUser(user);
+                refund.setTatilTarihi(date);
+                refund.setTatilAciklama("Kullanıcı rezervasyon iptali");
+                refund.setIadeEdilen(dailyPrice);
+                refund.setIsRefunded(false);
+                refundRecordRepository.save(refund);
+            }
+        }
+
+        if (globalDiffDays != 0) {
+            PaymentTransaction transaction = new PaymentTransaction();
+            transaction.setUser(user);
+            transaction.setYil(request.getYil());
+            transaction.setAy(request.getSelections().isEmpty() ? 1 : request.getSelections().get(0).getAy()); 
+            transaction.setIslemTarihi(LocalDateTime.now(ZoneId.of(timezone)));
+            transaction.setIslemGunSayisi(Math.abs(globalDiffDays));
+            transaction.setIslemTutari(Math.abs(globalDiffDays * dailyPrice));
+            transaction.setIslemTipi(globalDiffDays > 0 ? "EK ÖDEME" : "İPTAL");
+            transactionRepository.save(transaction);
+        }
+
+        return savedReservations.stream().map(MonthlyReservationDto::fromEntity).collect(Collectors.toList());
+    }
+
     private void applyReservationValues(MonthlyReservation reservation, ReservationRequest request) {
         reservation.setYil(request.getYil());
         reservation.setAy(request.getAy());
