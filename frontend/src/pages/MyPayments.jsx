@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { getUserTransactions } from '../services/reservationService';
 import { getUserRefunds, markRefunded } from '../services/holidayService';
