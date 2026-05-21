@@ -42,6 +42,33 @@ const avatarColors = [
     '#7C3AED', '#DB2777', '#2563EB', '#16A34A', '#EA580C',
 ];
 
+// ─── Field (module-level — must NOT be defined inside a component) ────────────
+
+const Field = ({ id, label, icon: Icon, type = 'text', value, onChange, error, rightEl }) => (
+    <div className="form-group">
+        <label className="form-label" htmlFor={id}>{label}</label>
+        <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
+                <Icon size={16} />
+            </div>
+            <input
+                id={id}
+                type={type}
+                className="form-control"
+                style={{ paddingLeft: '2.4rem', paddingRight: rightEl ? '2.8rem' : undefined, borderColor: error ? '#EF4444' : undefined }}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+            />
+            {rightEl && (
+                <div style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                    {rightEl}
+                </div>
+            )}
+        </div>
+        {error && <div style={{ color: '#DC2626', fontSize: '0.8rem', marginTop: '0.3rem' }}>{error}</div>}
+    </div>
+);
+
 // ─── Add User Modal ────────────────────────────────────────────────────────────
 
 const AddUserModal = ({ onClose, onSuccess }) => {
@@ -80,31 +107,6 @@ const AddUserModal = ({ onClose, onSuccess }) => {
         if (!validate()) return;
         mutation.mutate(form);
     };
-
-    const Field = ({ id, label, icon: Icon, type = 'text', value, onChange, error, rightEl }) => (
-        <div className="form-group">
-            <label className="form-label" htmlFor={id}>{label}</label>
-            <div style={{ position: 'relative' }}>
-                <div style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
-                    <Icon size={16} />
-                </div>
-                <input
-                    id={id}
-                    type={type}
-                    className="form-control"
-                    style={{ paddingLeft: '2.4rem', paddingRight: rightEl ? '2.8rem' : undefined, borderColor: error ? '#EF4444' : undefined }}
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                />
-                {rightEl && (
-                    <div style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                        {rightEl}
-                    </div>
-                )}
-            </div>
-            {error && <div style={{ color: '#DC2626', fontSize: '0.8rem', marginTop: '0.3rem' }}>{error}</div>}
-        </div>
-    );
 
     return (
         <div style={{

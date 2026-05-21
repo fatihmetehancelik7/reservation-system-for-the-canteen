@@ -150,6 +150,28 @@ const MonthlySelection = () => {
     const difference = totalPrice - oldTotalPrice;
     const isSaving = createReservationMutation.isPending || updateReservationMutation.isPending;
 
+    // Tüm ayların seçim özeti (mevcut rezervasyonlar + yeni seçimler)
+    const monthName = (m) => new Date(2026, m - 1, 1).toLocaleDateString('tr-TR', { month: 'long' });
+    const allMonthsBreakdown = Array.from({ length: 12 }, (_, i) => i + 1).reduce((acc, m) => {
+        const existingForMonth = reservations.find(r => r.yil === currentYear && r.ay === m);
+        // Kullanıcının bu ay için yaptığı seçimler (varsa override, yoksa mevcut rezervasyon)
+        const pendingDays = selectedDaysByMonth[m];
+        let days = 0;
+        let isPending = false; // henüz ödenmemiş yeni seçim
+        if (pendingDays !== undefined) {
+            // Kullanıcı bu ayı düzenledi
+            const filteredPending = pendingDays.filter(d => !holidays.includes(d));
+            days = filteredPending.length;
+            isPending = true;
+        } else if (existingForMonth) {
+            days = (existingForMonth.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
+        }
+        if (days > 0) acc.push({ month: m, days, isPending, existing: existingForMonth });
+        return acc;
+    }, []);
+    const grandTotalDays = allMonthsBreakdown.reduce((s, x) => s + x.days, 0);
+    const grandTotal     = grandTotalDays * 100;
+
     return (
         <div className="fade-in">
             <h1 className="page-title">Aylık Rezervasyon ve Ödeme</h1>
@@ -250,18 +272,22 @@ const MonthlySelection = () => {
 
                     <Card title={isUpdateMode ? "Güncelleme Özeti" : "Ödeme Özeti"}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem' }}>
-                                <span>Seçilen Gün:</span>
-                                <strong>{selectedDays.length}</strong>
+
+                            {/* ── Bu ayın özeti ── */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem' }}>
+                                <span style={{ fontWeight: 600 }}>
+                                    {monthName(selectedMonth)} seçimi:
+                                </span>
+                                <strong>{selectedDays.length} gün</strong>
                             </div>
 
                             {isUpdateMode && (
                                 <>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', color: 'var(--text-muted)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-muted)' }}>
                                         <span>Önceki Tutar:</span>
                                         <span>{oldTotalPrice} TL</span>
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', color: difference < 0 ? '#10B981' : (difference > 0 ? '#EF4444' : 'var(--text-muted)') }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: difference < 0 ? '#10B981' : (difference > 0 ? '#EF4444' : 'var(--text-muted)') }}>
                                         <span>Fark:</span>
                                         <strong>{difference > 0 ? `+${difference} TL` : `${difference} TL`}</strong>
                                     </div>
@@ -270,20 +296,73 @@ const MonthlySelection = () => {
                                 </>
                             )}
 
-                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', color: 'var(--primary)', fontWeight: 'bold' }}>
-                                <span>Yeni Toplam:</span>
+                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', color: 'var(--primary)', fontWeight: 'bold' }}>
+                                <span>Bu Ay Toplam:</span>
                                 <span>{totalPrice} TL</span>
                             </div>
 
                             <button
                                 className="btn btn-primary"
-                                style={{ width: '100%', marginTop: '1rem', padding: '1rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                style={{ width: '100%', padding: '1rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                                 disabled={(!isUpdateMode && selectedDays.length === 0) || isSaving}
                                 onClick={handlePayment}
                             >
                                 <CreditCard size={20} />
                                 {isSaving ? 'İşleniyor...' : isUpdateMode ? (selectedDays.length === 0 ? 'Tümünü İptal Et' : 'Güncelle') : (totalPrice > 0 ? `${totalPrice} TL Öde` : 'Seçim Yapın')}
                             </button>
+
+                            {/* ── Genel Toplam (birden fazla ay seçilmişse) ── */}
+                            {allMonthsBreakdown.length > 0 && (
+                                <div style={{
+                                    marginTop: '0.25rem',
+                                    background: 'var(--background)',
+                                    borderRadius: 10,
+                                    padding: '1rem',
+                                    border: '1px solid var(--border)'
+                                }}>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.6rem' }}>
+                                        Tüm Aylara Genel Bakış
+                                    </div>
+                                    {allMonthsBreakdown.map(({ month, days: cnt, isPending, existing }) => {
+                                        const isCurrentMonth = month === selectedMonth;
+                                        const isNew = isPending && !existing;
+                                        return (
+                                            <div key={month}
+                                                onClick={() => setSelectedMonth(month)}
+                                                style={{
+                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                    padding: '0.4rem 0.5rem', borderRadius: 7, marginBottom: '0.25rem', cursor: 'pointer',
+                                                    background: isCurrentMonth ? '#EEF2FF' : 'transparent',
+                                                    fontWeight: isCurrentMonth ? 700 : 400,
+                                                    border: isCurrentMonth ? '1px solid #C7D2FE' : '1px solid transparent',
+                                                    transition: 'background 0.15s',
+                                                }}
+                                            >
+                                                <span style={{ fontSize: '0.88rem', color: isCurrentMonth ? 'var(--primary)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                    {isCurrentMonth && <span style={{ fontSize: '0.7rem' }}>▶</span>}
+                                                    {monthName(month)}
+                                                    {isNew && <span style={{ fontSize: '0.7rem', color: '#10B981', fontWeight: 700 }}>YENİ</span>}
+                                                    {isPending && !isNew && <span style={{ fontSize: '0.7rem', color: '#F59E0B', fontWeight: 700 }}>DÜZENLENDI</span>}
+                                                </span>
+                                                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: isCurrentMonth ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                                    {cnt} gün · {cnt * 100} TL
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                    <div style={{
+                                        borderTop: '2px solid var(--primary)', marginTop: '0.5rem', paddingTop: '0.6rem',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                    }}>
+                                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                                            Genel Toplam
+                                        </span>
+                                        <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--primary)' }}>
+                                            {grandTotalDays} gün · {grandTotal} TL
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </Card>
                 </div>
