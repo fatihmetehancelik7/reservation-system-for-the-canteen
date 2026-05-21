@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginApi } from '../services/authService';
 import { CalendarDays, AlertCircle } from 'lucide-react';
@@ -8,23 +9,30 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [sifre, setSifre] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
+    const { user, login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const from = location.state?.from?.pathname || '/dashboard';
 
-    const handleSubmit = async (e) => {
+    const loginMutation = useMutation({
+        mutationFn: () => loginApi(email, sifre),
+        onSuccess: (data) => {
+            login(data);
+            navigate(from, { replace: true });
+        },
+        onError: (err) => {
+            setError(err.response?.data?.error || 'Giriş başarısız.');
+        },
+    });
+
+    if (user) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    const handleSubmit = (e) => {
         e.preventDefault();
         setError('');
-        setLoading(true);
-        try {
-            const data = await loginApi(email, sifre);
-            login(data);
-            navigate('/dashboard');
-        } catch (err) {
-            setError(err.response?.data?.error || 'Giriş başarısız.');
-        } finally {
-            setLoading(false);
-        }
+        loginMutation.mutate();
     };
 
     return (
@@ -37,7 +45,7 @@ const Login = () => {
                     <h2 style={{ margin: 0 }}>Yemekhane Rezervasyon</h2>
                     <p style={{ color: 'var(--text-muted)' }}>Aylık Seçim & Ödeme Sistemi</p>
                 </div>
-                
+
                 {error && (
                     <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
                         <AlertCircle size={20} />
@@ -48,26 +56,26 @@ const Login = () => {
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label className="form-label">Email</label>
-                        <input 
-                            type="email" 
-                            className="form-control" 
+                        <input
+                            type="email"
+                            className="form-control"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            required 
+                            required
                         />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Şifre</label>
-                        <input 
-                            type="password" 
-                            className="form-control" 
+                        <input
+                            type="password"
+                            className="form-control"
                             value={sifre}
                             onChange={(e) => setSifre(e.target.value)}
-                            required 
+                            required
                         />
                     </div>
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '1rem' }} disabled={loading}>
-                        {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '1rem' }} disabled={loginMutation.isPending}>
+                        {loginMutation.isPending ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
                     </button>
                 </form>
 

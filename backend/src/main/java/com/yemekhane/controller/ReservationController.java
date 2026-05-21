@@ -2,7 +2,12 @@ package com.yemekhane.controller;
 
 import com.yemekhane.dto.MonthlyReservationDto;
 import com.yemekhane.dto.ReservationRequest;
+import com.yemekhane.entity.Role;
+import com.yemekhane.entity.User;
+import com.yemekhane.exception.BusinessException;
 import com.yemekhane.service.ReservationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,17 +27,30 @@ public class ReservationController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<MonthlyReservationDto>> getUserReservations(@PathVariable Long userId) {
+    public ResponseEntity<List<MonthlyReservationDto>> getUserReservations(@PathVariable Long userId, HttpServletRequest httpRequest) {
+        assertUserCanAccess(userId, httpRequest);
         return ResponseEntity.ok(reservationService.getUserReservations(userId));
     }
 
     @PostMapping("/reserve")
-    public ResponseEntity<MonthlyReservationDto> createReservation(@RequestBody ReservationRequest request) {
+    public ResponseEntity<MonthlyReservationDto> createReservation(@Valid @RequestBody ReservationRequest request, HttpServletRequest httpRequest) {
+        assertUserCanAccess(request.getUserId(), httpRequest);
         return ResponseEntity.ok(reservationService.createMonthlyReservation(request));
     }
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<MonthlyReservationDto> updateReservation(@PathVariable Long id, @RequestBody ReservationRequest request) {
+    public ResponseEntity<MonthlyReservationDto> updateReservation(@PathVariable Long id, @Valid @RequestBody ReservationRequest request, HttpServletRequest httpRequest) {
+        assertUserCanAccess(request.getUserId(), httpRequest);
         return ResponseEntity.ok(reservationService.updateMonthlyReservation(id, request));
+    }
+
+    private void assertUserCanAccess(Long userId, HttpServletRequest request) {
+        User authenticatedUser = (User) request.getAttribute("authenticatedUser");
+        if (authenticatedUser == null) {
+            throw new BusinessException("Oturum bulunamadı.");
+        }
+        if (authenticatedUser.getRol() != Role.ADMIN && !authenticatedUser.getId().equals(userId)) {
+            throw new BusinessException("Başka bir kullanıcının verilerine erişemezsiniz.");
+        }
     }
 }

@@ -1,6 +1,8 @@
 package com.yemekhane.dto;
 
 import com.yemekhane.entity.MonthlyMenu;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import java.time.LocalDate;
 
@@ -10,7 +12,11 @@ public class MonthlyMenuDto {
     private Integer yil;
     private Integer ay;
     private Integer gun;
+
+    @NotNull(message = "Tarih zorunludur.")
     private LocalDate tarih;
+
+    @NotBlank(message = "Yemek listesi zorunludur.")
     private String yemekListesi;
     private Boolean aktifMi;
 

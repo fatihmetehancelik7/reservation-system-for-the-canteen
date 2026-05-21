@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { getUserReservations } from '../services/reservationService';
 import { getUserRefunds } from '../services/holidayService';
@@ -8,28 +9,17 @@ import { CreditCard, RefreshCcw, AlertTriangle } from 'lucide-react';
 
 const MyPayments = () => {
     const { user } = useAuth();
-    const [reservations, setReservations] = useState([]);
-    const [refunds, setRefunds] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('payments');
+    const [reservationsQuery, refundsQuery] = useQueries({
+        queries: [
+            { queryKey: ['reservations', 'user', user?.id], queryFn: () => getUserReservations(user.id), enabled: !!user?.id },
+            { queryKey: ['refunds', 'user', user?.id], queryFn: () => getUserRefunds(user.id), enabled: !!user?.id },
+        ],
+    });
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                const [resData, refundData] = await Promise.all([
-                    getUserReservations(user.id),
-                    getUserRefunds(user.id)
-                ]);
-                setReservations(resData);
-                setRefunds(refundData);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
-    }, [user.id]);
+    const reservations = reservationsQuery.data ?? [];
+    const refunds = refundsQuery.data ?? [];
+    const loading = reservationsQuery.isLoading || refundsQuery.isLoading;
 
     const paymentColumns = [
         { field: 'yil', header: 'Yıl' },
@@ -106,7 +96,6 @@ const MyPayments = () => {
         <div className="fade-in">
             <h1 className="page-title">Ödeme Geçmişim</h1>
 
-            {/* Summary cards */}
             <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
                 <Card>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -132,7 +121,6 @@ const MyPayments = () => {
                 </Card>
             </div>
 
-            {/* Refund alert for user */}
             {refunds.length > 0 && (
                 <div style={{
                     background: 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
@@ -155,7 +143,6 @@ const MyPayments = () => {
                 </div>
             )}
 
-            {/* Tabs */}
             <Card>
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
                     <button style={tabStyle('payments')} onClick={() => setActiveTab('payments')}>
@@ -182,7 +169,9 @@ const MyPayments = () => {
                     </button>
                 </div>
 
-                {loading ? (
+                {reservationsQuery.isError || refundsQuery.isError ? (
+                    <div className="text-danger">Ödeme ve iade verileri yüklenirken hata oluştu.</div>
+                ) : loading ? (
                     <p>Yükleniyor...</p>
                 ) : activeTab === 'payments' ? (
                     <Table columns={paymentColumns} data={reservations} />

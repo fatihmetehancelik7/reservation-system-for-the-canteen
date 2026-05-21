@@ -1,8 +1,10 @@
-# Yemekhane Rezervasyon Sistemi
+# 🍽️ Yemekhane Rezervasyon Sistemi
 
-Yemekhane Rezervasyon Sistemi, kurumsal yemekhaneler için geliştirilmiş tam yığınlı bir rezervasyon ve ödeme takip uygulamasıdır. Sistem; aylık yemek rezervasyonlarını, günlük ödeme takibini, tatil günü yönetimini ve tatil ilan edilen günler için otomatik iade kaydı oluşturmayı destekler.
+Kurumsal yemekhaneler için geliştirilmiş tam yığınlı (full-stack) bir rezervasyon, ödeme ve yönetim uygulamasıdır.
 
-Proje, Java 17 ve Spring Boot tabanlı bir backend ile React + Vite tabanlı bir frontend mimarisi üzerine kuruludur.
+Sistem; aylık yemek rezervasyonlarını, çoklu ay ödeme toplamlarını, tatil günü yönetimini, otomatik iade kayıtlarını, kullanıcı yönetimini ve yönetici istatistik panelini tek bir platformda sunar.
+
+> **Canlı Repo:** [github.com/fatihmetehancelik7/reservation-system-for-the-canteen](https://github.com/fatihmetehancelik7/reservation-system-for-the-canteen)
 
 ---
 
@@ -10,99 +12,84 @@ Proje, Java 17 ve Spring Boot tabanlı bir backend ile React + Vite tabanlı bir
 
 - [Genel Bakış](#genel-bakış)
 - [Özellikler](#özellikler)
-- [İş Mantığı](#iş-mantığı)
+- [Ekran Görüntüleri](#ekran-görüntüleri)
 - [Teknoloji Yığını](#teknoloji-yığını)
 - [Proje Yapısı](#proje-yapısı)
 - [Kurulum ve Çalıştırma](#kurulum-ve-çalıştırma)
 - [Varsayılan Kullanıcılar](#varsayılan-kullanıcılar)
-- [Kullanım Senaryosu](#kullanım-senaryosu)
+- [API Uç Noktaları](#api-uç-noktaları)
+- [İş Mantığı](#iş-mantığı)
 - [Geliştirme Notları](#geliştirme-notları)
-- [Lisans](#lisans)
 
 ---
 
 ## Genel Bakış
 
-Bu uygulama, yemekhane rezervasyon süreçlerini dijitalleştirmek ve ödeme/iade takibini daha düzenli hâle getirmek amacıyla geliştirilmiştir.
-
-Kurumlarda yemek rezervasyonu genellikle manuel formlar, Excel tabloları veya dağınık iletişim kanalları üzerinden takip edilir. Bu durum; yanlış rezervasyon sayıları, ödeme takibinde belirsizlik ve tatil günlerinde manuel iade hesaplama gibi operasyonel sorunlara yol açabilir.
-
-Yemekhane Rezervasyon Sistemi, bu süreci merkezi bir uygulama üzerinden yöneterek hem kullanıcılar hem de yöneticiler için daha izlenebilir ve kontrollü bir yapı sunar.
+Yemekhane Rezervasyon Sistemi, kurum çalışanlarının aylık yemek rezervasyonlarını dijital ortamda yönetmesini sağlar. Kullanıcılar istedikleri günleri takvimden seçerek rezervasyon oluşturabilir; birden fazla ay için seçim yapıp tek seferde ödeme yapabilir. Yöneticiler menü planlama, tatil günü yönetimi, istatistik takibi ve kullanıcı yönetimi işlemlerini merkezi admin panelinden gerçekleştirir.
 
 ---
 
 ## Özellikler
 
-### Kullanıcı Paneli
+### 👤 Kullanıcı Paneli
 
-Kullanıcılar sistem üzerinden aylık yemek rezervasyonlarını gün bazında yönetebilir. Rezervasyon yapılan günler için ödeme durumu takip edilebilir; tatil ilan edilen günlerde ise ilgili iade kayıtları görüntülenebilir.
+| Özellik | Açıklama |
+|---------|----------|
+| **Aylık Rezervasyon** | Takvimden hafta içi günleri seçerek rezervasyon oluşturma |
+| **Çoklu Ay Seçimi** | Haziran, Temmuz, Ağustos gibi birden fazla ay seçilip tek butonla ödeme yapılabilir |
+| **Toplam Tutar Görünümü** | Tüm seçili ayların genel toplamı ve ay ay döküm paneli |
+| **Rezervasyon Güncelleme** | Mevcut rezervasyona gün eklenip çıkarılabilir, fark tutarı gösterilir |
+| **Geçmiş Gün Kilitleme** | Bugün ve önceki günler takvimde kilitli gösterilir, seçilemez |
+| **İade Takibi** | Tatil ilan edilen günlerdeki iade kayıtları kullanıcı panelinde görüntülenir |
+| **Ödeme Geçmişi** | Tüm rezervasyon ve ödeme kayıtları liste hâlinde takip edilebilir |
 
-Temel kullanıcı işlemleri:
+### 🛠️ Admin Paneli
 
-- Aylık rezervasyonları görüntüleme
-- Gün bazlı yemek rezervasyonu oluşturma
-- Rezervasyon durumunu takip etme
-- Ödeme bilgilerini görüntüleme
-- İade kayıtlarını takip etme
-
-### Admin Paneli
-
-Admin kullanıcıları, yemekhane operasyonlarını merkezi olarak yönetebilir. Menü yönetimi, tatil günü tanımlama ve rezervasyon kontrolü admin paneli üzerinden yapılır.
-
-Temel admin işlemleri:
-
-- Menü yönetimi
-- Tatil günü yönetimi
-- Rezervasyon kayıtlarını görüntüleme
-- Kullanıcı rezervasyonlarını izleme
-- Tatil ilan edilen günler için otomatik iade sürecini yönetme
+| Özellik | Açıklama |
+|---------|----------|
+| **Menü Yönetimi** | Günlük yemek listelerini tarih bazlı ekleme, düzenleme, silme |
+| **Tatil Günü Yönetimi** | Tatil ilan edilen günlerde otomatik iade kaydı oluşturulur |
+| **Rezervasyon Kayıtları** | Tüm kullanıcıların rezervasyonlarını listeleme ve filtreleme |
+| **Kullanıcı Yönetimi** | Yeni kullanıcı ekleme (modal form), rol atama, arama ve filtreleme |
+| **İstatistikler / Raporlama** | Aylık gelir, rezervasyon sayısı, aktif kullanıcı ve iade toplamları gibi operasyonel metrikler |
 
 ---
 
-## İş Mantığı
+## Ekran Görüntüleri
 
-Sistem, aylık yemek rezervasyonu mantığı üzerine kuruludur. Kullanıcılar belirli günler için yemek rezervasyonu yapar ve her rezervasyon günü için ödeme takibi oluşturulur.
-
-README kapsamında ödeme tutarı günlük **100 TL** olarak belirtilmiştir. Kullanıcı bir gün için rezervasyon oluşturduğunda, sistem bu gün için ödeme takibini de ilişkilendirir.
-
-Bir gün daha sonradan tatil veya kapalı gün olarak işaretlenirse, sistem o güne ait rezervasyonları kontrol eder ve ilgili kullanıcılar için otomatik iade kaydı oluşturur.
-
-Bu yapı sayesinde:
-
-- Günlük yemek sayısı daha sağlıklı tahmin edilir.
-- Ödeme ve rezervasyon ilişkisi daha açık hâle gelir.
-- Tatil günleri için manuel iade hesaplama ihtiyacı azalır.
-- Kullanıcı ve admin tarafında daha şeffaf bir takip mekanizması oluşur.
+> Uygulamayı çalıştırarak aşağıdaki adresleri ziyaret edebilirsiniz:
+>
+> - **Kullanıcı Paneli:** `http://localhost:5173`
+> - **Admin Paneli:** `http://localhost:5173/admin/menu`
 
 ---
 
 ## Teknoloji Yığını
 
-| Katman | Teknoloji |
-|---|---|
-| Backend | Java 17, Spring Boot |
-| API | Spring Web |
-| Veri Erişimi | Spring Data JPA |
-| Doğrulama | Spring Validation |
-| Veritabanı | H2 Database |
-| Frontend | React, Vite |
-| HTTP İstekleri | Axios |
-| Routing | React Router DOM |
-| İkonlar | Lucide React |
-| Backend Build Aracı | Maven |
-| Frontend Paket Yöneticisi | npm |
+### Backend
 
----
+| Teknoloji | Sürüm | Kullanım |
+|-----------|-------|----------|
+| Java | 17 | Temel dil |
+| Spring Boot | 3.2.3 | Uygulama çatısı |
+| Spring Web | — | REST API katmanı |
+| Spring Data JPA | — | Veri erişim katmanı |
+| Spring Validation | — | İstek doğrulama |
+| H2 Database | — | Kalıcı dosya tabanlı veritabanı (`file:./data/yemekhane_db`) |
+| Lombok | — | Boilerplate azaltma |
+| Maven | 3.9.6 | Build aracı |
 
-## Mimari
+### Frontend
 
-Proje klasik istemci-sunucu mimarisiyle geliştirilmiştir.
-
-Frontend tarafında React + Vite kullanılarak tek sayfa uygulama yapısı oluşturulmuştur. Kullanıcı arayüzü, backend tarafından sağlanan REST API uç noktaları ile haberleşir.
-
-Backend tarafında Spring Boot kullanılmıştır. REST API katmanı, iş mantığı ve veri erişim katmanı backend içerisinde yönetilir. Spring Data JPA ile veritabanı işlemleri gerçekleştirilir.
-
-Varsayılan geliştirme ortamında H2 Database kullanılmaktadır. Bu yapı, projeyi hızlı şekilde çalıştırmak ve test etmek için uygundur. Üretim ortamı için PostgreSQL veya MySQL gibi kalıcı bir veritabanı tercih edilmesi daha doğru olacaktır.
+| Teknoloji | Kullanım |
+|-----------|----------|
+| React 18 | UI kütüphanesi |
+| Vite | Build aracı ve geliştirme sunucusu |
+| React Router DOM | Sayfa yönlendirme |
+| TanStack Query (React Query) | Sunucu durumu yönetimi |
+| Axios | HTTP istekleri |
+| Lucide React | İkon kütüphanesi |
+| Vanilla CSS | Özel stil sistemi |
 
 ---
 
@@ -110,29 +97,43 @@ Varsayılan geliştirme ortamında H2 Database kullanılmaktadır. Bu yapı, pro
 
 ```text
 reservation-system-for-the-canteen/
-├── backend/        # Spring Boot backend servisi
-├── frontend/       # React + Vite frontend uygulaması
-├── seed.js         # Başlangıç verisi / seed işlemleri için script
-├── README.md       # Proje dokümantasyonu
+├── backend/                          # Spring Boot backend
+│   ├── src/main/java/com/yemekhane/
+│   │   ├── config/
+│   │   │   └── DataInitializer.java  # Başlangıç verisi (kullanıcılar, tatiller)
+│   │   ├── controller/               # REST controller'lar
+│   │   ├── dto/                      # Veri transfer nesneleri
+│   │   ├── entity/                   # JPA entity sınıfları
+│   │   ├── exception/                # Hata yönetimi
+│   │   ├── repository/               # Spring Data JPA repository'leri
+│   │   └── service/                  # İş mantığı servisleri
+│   ├── src/main/resources/
+│   │   └── application.yml           # Uygulama yapılandırması
+│   ├── data/                         # H2 veritabanı dosyaları (gitignore'da)
+│   ├── pom.xml
+│   └── maven/                        # Paketlenmiş Maven dağıtımı
+│
+├── frontend/                         # React + Vite frontend
+│   ├── src/
+│   │   ├── components/               # Tekrar kullanılabilir UI bileşenleri
+│   │   ├── context/                  # Auth context
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── MonthlySelection.jsx  # Rezervasyon ve ödeme
+│   │   │   ├── MyReservations.jsx
+│   │   │   ├── AdminMenu.jsx
+│   │   │   ├── AdminHolidays.jsx
+│   │   │   ├── AdminReservations.jsx
+│   │   │   ├── AdminStatistics.jsx   # İstatistik paneli
+│   │   │   └── AdminUsers.jsx        # Kullanıcı yönetimi
+│   │   ├── services/                 # API servis fonksiyonları
+│   │   └── App.jsx                   # Routing tanımları
+│   └── package.json
+│
+├── seed_data.ps1                     # Toplu veri yükleme scripti (PowerShell)
+├── README.md
 └── .gitignore
-```
-
-### Backend
-
-```text
-backend/
-├── src/            # Java kaynak kodları
-├── pom.xml         # Maven bağımlılıkları ve proje yapılandırması
-└── maven.zip       # Proje ile birlikte gelen Maven dağıtımı
-```
-
-### Frontend
-
-```text
-frontend/
-├── src/            # React kaynak kodları
-├── package.json    # Frontend bağımlılıkları ve script'ler
-└── vite.config.*   # Vite yapılandırması
 ```
 
 ---
@@ -141,47 +142,38 @@ frontend/
 
 ### Gereksinimler
 
-Projeyi çalıştırmak için aşağıdaki araçların sisteminizde kurulu olması önerilir:
-
-- Java 17
-- Node.js
+- Java 17+
+- Node.js 18+
 - npm
-- Maven
 
-> Not: Proje içerisinde `backend/maven.zip` bulunduğu için Maven dağıtımı repo ile birlikte de kullanılabilir.
+> Maven sisteminizde kurulu olmasa bile `backend/maven/` klasöründeki dağıtım kullanılabilir.
 
 ---
 
-### Backend'i Çalıştırma
-
-Backend servisi varsayılan olarak `http://localhost:8080` adresinde çalışır.
+### 1. Backend'i Başlatma
 
 ```bash
 cd backend
+```
+
+**Sistem Maven'ı ile:**
+```bash
 mvn spring-boot:run
 ```
 
-Eğer sisteminizde Maven kurulu değilse ve projedeki Maven dağıtımını kullanmak istiyorsanız, önce `backend/maven.zip` dosyasını çıkarmanız gerekir.
-
-Ardından Maven binary yolu üzerinden çalıştırabilirsiniz:
-
-```bash
-cd backend
-./maven/apache-maven-3.9.6/bin/mvn spring-boot:run
+**Proje içindeki Maven ile (Windows):**
+```powershell
+.\maven\apache-maven-3.9.6\bin\mvn spring-boot:run
 ```
 
-Windows için örnek kullanım:
+Backend `http://localhost:8080` adresinde çalışır.  
+H2 konsolu: `http://localhost:8080/h2-console`
 
-```bash
-cd backend
-maven\apache-maven-3.9.6\bin\mvn spring-boot:run
-```
+> Veritabanı dosyası `backend/data/yemekhane_db.mv.db` olarak saklanır ve uygulama yeniden başlatıldığında veriler korunur.
 
 ---
 
-### Frontend'i Çalıştırma
-
-Frontend uygulaması varsayılan olarak `http://localhost:5173` adresinde çalışır.
+### 2. Frontend'i Başlatma
 
 ```bash
 cd frontend
@@ -189,204 +181,152 @@ npm install
 npm run dev
 ```
 
-Tarayıcı üzerinden aşağıdaki adrese giderek uygulamayı açabilirsiniz:
+Uygulama `http://localhost:5173` adresinde açılır.
 
-```text
-http://localhost:5173
+---
+
+### 3. Başlangıç Verilerini Yükleme (İsteğe Bağlı)
+
+Haziran–Temmuz–Ağustos menüleri ile ek kullanıcıları yüklemek için backend çalışırken:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\seed_data.ps1
 ```
 
 ---
 
 ## Varsayılan Kullanıcılar
 
-Projede test ve geliştirme amacıyla kullanılabilecek varsayılan kullanıcılar bulunmaktadır.
+Uygulama ilk çalıştırıldığında aşağıdaki kullanıcılar otomatik oluşturulur:
 
-| E-posta | Şifre | Rol |
-|---|---:|---|
-| admin@yemekhane.com | 123456 | Admin |
-| kullanici@yemekhane.com | 123456 | Kullanıcı |
-| ahmet@yemekhane.com | 123456 | Kullanıcı |
+| Ad Soyad | E-posta | Şifre | Rol |
+|----------|---------|-------|-----|
+| Admin Sistem | admin@yemekhane.com | 123456 | Admin |
+| Standart Kullanıcı | kullanici@yemekhane.com | 123456 | Kullanıcı |
+| Ahmet Yılmaz | ahmet@yemekhane.com | 123456 | Kullanıcı |
 
-Admin kullanıcısı yönetim paneline erişebilir. Kullanıcı rolündeki hesaplar ise rezervasyon, ödeme ve iade takip ekranlarını kullanabilir.
+`seed_data.ps1` çalıştırıldığında ek olarak eklenen kullanıcılar:
 
----
-
-## Kullanım Senaryosu
-
-Bir kurum çalışanı, ay içerisindeki yemek yiyeceği günleri sistem üzerinden seçer. Sistem bu rezervasyonları gün bazında kaydeder ve ilgili ödeme durumunu takip eder.
-
-Örneğin kullanıcı, ayın belirli günleri için yemek rezervasyonu oluşturduğunda sistem bu günleri kullanıcının hesabıyla ilişkilendirir. Her gün için günlük ücret üzerinden ödeme takibi yapılır.
-
-Admin tarafında ise kurum yemekhanesi için tatil veya kapalı günler tanımlanabilir. Daha önce rezervasyon yapılmış bir gün tatil olarak işaretlenirse, sistem ilgili gün için otomatik iade kaydı üretir.
-
-Bu sayede rezervasyon, ödeme ve iade süreçleri tek bir sistem üzerinden yönetilebilir.
+| Ad Soyad | E-posta | Şifre | Rol |
+|----------|---------|-------|-----|
+| Ayşe Kaya | ayse@yemekhane.com | 123456 | Kullanıcı |
+| Mehmet Demir | mehmet@yemekhane.com | 123456 | Kullanıcı |
+| Zeynep Çelik | zeynep@yemekhane.com | 123456 | Kullanıcı |
+| Mustafa Öztürk | mustafa@yemekhane.com | 123456 | Kullanıcı |
 
 ---
 
-## Örnek İş Akışı
+## API Uç Noktaları
 
-1. Kullanıcı sisteme giriş yapar.
-2. Aylık rezervasyon ekranından yemek yiyeceği günleri seçer.
-3. Sistem seçilen günler için rezervasyon kaydı oluşturur.
-4. Her rezervasyon günü için ödeme takibi yapılır.
-5. Admin panelinden bir gün tatil olarak işaretlenirse sistem ilgili rezervasyonları kontrol eder.
-6. Tatil gününe ait rezervasyonu bulunan kullanıcılar için otomatik iade kaydı oluşturulur.
-7. Kullanıcı iade durumunu kendi panelinden görüntüleyebilir.
+Tüm API uç noktaları `http://localhost:8080/api` altında tanımlıdır.
+
+### Kullanıcılar
+
+| Method | Endpoint | Açıklama |
+|--------|----------|----------|
+| `POST` | `/users/login` | Giriş işlemi |
+| `GET` | `/users` | Tüm kullanıcıları listele |
+| `POST` | `/users` | Yeni kullanıcı oluştur |
+
+### Menüler
+
+| Method | Endpoint | Açıklama |
+|--------|----------|----------|
+| `GET` | `/menus?yil=&ay=` | Aya ait menüleri getir |
+| `POST` | `/menus` | Yeni menü ekle |
+| `PUT` | `/menus/{id}` | Menü güncelle |
+| `DELETE` | `/menus/{id}` | Menü sil |
+
+### Rezervasyonlar
+
+| Method | Endpoint | Açıklama |
+|--------|----------|----------|
+| `GET` | `/reservations` | Tüm rezervasyonlar |
+| `GET` | `/reservations/user/{userId}` | Kullanıcıya ait rezervasyonlar |
+| `POST` | `/reservations` | Rezervasyon oluştur |
+| `PUT` | `/reservations/{id}` | Rezervasyon güncelle |
+
+### Tatil Günleri
+
+| Method | Endpoint | Açıklama |
+|--------|----------|----------|
+| `GET` | `/holidays` | Tatil günlerini listele |
+| `POST` | `/holidays` | Tatil günü ekle |
+| `DELETE` | `/holidays/{id}` | Tatil günü sil |
+
+### İstatistikler (Admin)
+
+| Method | Endpoint | Açıklama |
+|--------|----------|----------|
+| `GET` | `/stats/overview` | Genel istatistikler |
+| `GET` | `/stats/monthly-revenue` | Aylık gelir grafiği |
+| `GET` | `/stats/top-users` | En aktif kullanıcılar |
+
+---
+
+## İş Mantığı
+
+### Rezervasyon Kuralları
+
+- Günlük yemek ücreti **100 TL** sabittir.
+- Yalnızca **hafta içi** günler seçilebilir (Cumartesi-Pazar kapalı).
+- **Bugün ve önceki günler** için rezervasyon oluşturulamaz / değiştirilemez (kilitli).
+- Menü tanımlanmamış günler takvimde pasif görünür.
+- Tatil ilan edilen günler kırmızı olarak işaretlenir.
+
+### Çoklu Ay Ödeme
+
+- Kullanıcı farklı aylara geçerek seçim yapabilir.
+- Ödeme paneli tüm ayların **genel toplamını** anlık olarak gösterir.
+- **"Tümünü Öde"** butonu, bekleyen tüm yeni ay rezervasyonlarını sırayla API'ye gönderir.
+- Mevcut bir rezervasyonu olan ay için ayrı **"Güncelle"** butonu görünür.
+
+### Tatil ve İade
+
+- Admin bir günü tatil ilan ettiğinde, o gün için rezervasyon yapan tüm kullanıcılara otomatik iade kaydı oluşturulur.
+- İade kayıtları kullanıcı panelinde ve admin "Tüm Ödemeler" ekranında görünür.
 
 ---
 
 ## Geliştirme Notları
 
-Bu proje, kurumsal yemekhane operasyonlarında sık görülen üç temel problemi çözmeyi hedefler:
+### Veritabanı Yapılandırması
 
-1. Gün bazlı yemek rezervasyonlarının düzenli tutulması
-2. Ödeme ve iade süreçlerinin izlenebilir hâle getirilmesi
-3. Tatil veya kapalı gün değişikliklerinin rezervasyon sistemine otomatik yansıtılması
+Veritabanı `backend/src/main/resources/application.yml` içinde tanımlıdır:
 
-Mevcut yapı geliştirmeye açıktır. Özellikle authentication, authorization, raporlama ve kalıcı veritabanı tarafında iyileştirmeler yapılabilir.
+```yaml
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/yemekhane_db;AUTO_SERVER=TRUE
+```
 
----
+`AUTO_SERVER=TRUE` ile aynı anda birden fazla bağlantıya izin verilir (H2 konsolu + uygulama).
 
-## Geliştirilebilecek Özellikler
+Veritabanı dosyaları `.gitignore` ile versiyon kontrolü dışında tutulur:
 
-İlerleyen sürümlerde aşağıdaki özellikler eklenebilir:
+```
+backend/data/
+```
 
-- JWT tabanlı kimlik doğrulama
-- Rol bazlı yetkilendirme iyileştirmeleri
-- PostgreSQL veya MySQL entegrasyonu
-- Docker ve Docker Compose desteği
-- Excel çıktısı alma
-- PDF rapor oluşturma
-- Gelişmiş admin raporlama ekranı
-- Günlük, haftalık ve aylık rezervasyon istatistikleri
-- Kullanıcı bazlı ödeme geçmişi
-- Bildirim sistemi
-- E-posta ile rezervasyon/iade bildirimi
-- Mobil uyum iyileştirmeleri
-- API dokümantasyonu için Swagger/OpenAPI entegrasyonu
+### İstatistik ve Raporlama Mantığı
 
----
+- Sistemde **"En Çok Rezerve Edilen Menüler"** istatistiği, kullanıcılardan alınan doğrudan puanlamalarla (1-5 yıldız gibi) değil, o günkü menülerin rezervasyon sayısıyla hesaplanmaktadır. İlerleyen geliştirmelerde menülere puanlama sistemi eklenebilir.
 
 ## Üretim Ortamı İçin Öneriler
 
-Bu proje geliştirme ve test ortamında H2 veritabanı ile kolayca çalıştırılabilir. Ancak üretim ortamında aşağıdaki düzenlemelerin yapılması önerilir:
+Bu proje, geliştirme hızı ve demo kolaylığı açısından bazı esnekliklere (örneğin düz metin şifreler, H2 veritabanı, frontend tabanlı rol koruması) sahiptir. Üretim ortamına geçerken **kesinlikle** yapılması gerekenler şunlardır:
 
-- H2 yerine PostgreSQL veya MySQL kullanılmalıdır.
-- Varsayılan kullanıcı şifreleri değiştirilmelidir.
-- Kimlik doğrulama JWT veya session tabanlı güvenli bir yapıya taşınmalıdır.
-- CORS ayarları sadece izin verilen frontend domainleriyle sınırlandırılmalıdır.
-- Hassas bilgiler environment variable üzerinden yönetilmelidir.
-- Backend ve frontend için ayrı build/deploy süreçleri oluşturulmalıdır.
-- Loglama ve hata izleme mekanizmaları eklenmelidir.
-
----
-
-## API
-
-Backend REST API yapısı Spring Boot üzerinde çalışmaktadır. API uç noktaları backend kaynak kodunda controller sınıfları üzerinden incelenebilir.
-
-İlerleyen sürümlerde Swagger/OpenAPI desteği eklenerek API dokümantasyonu otomatik üretilebilir.
-
-Önerilen API dokümantasyon geliştirmesi:
-
-```xml
-<dependency>
-    <groupId>org.springdoc</groupId>
-    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-    <version>2.5.0</version>
-</dependency>
-```
-
-Bu entegrasyon sonrasında API dokümantasyonu genellikle aşağıdaki adresten erişilebilir:
-
-```text
-http://localhost:8080/swagger-ui/index.html
-```
-
----
-
-## Frontend Komutları
-
-Frontend dizininde kullanılabilecek temel komutlar:
-
-```bash
-npm install
-```
-
-Bağımlılıkları yükler.
-
-```bash
-npm run dev
-```
-
-Geliştirme sunucusunu başlatır.
-
-```bash
-npm run build
-```
-
-Production build oluşturur.
-
-```bash
-npm run preview
-```
-
-Oluşturulan production build'i yerel ortamda önizler.
-
-```bash
-npm run lint
-```
-
-Kod kalitesi ve lint kontrollerini çalıştırır.
-
----
-
-## Backend Komutları
-
-Backend dizininde kullanılabilecek temel komutlar:
-
-```bash
-mvn spring-boot:run
-```
-
-Spring Boot uygulamasını başlatır.
-
-```bash
-mvn clean install
-```
-
-Projeyi temizler, bağımlılıkları indirir ve build işlemini gerçekleştirir.
-
-```bash
-mvn test
-```
-
-Testleri çalıştırır.
-
----
-
-## Katkı Sağlama
-
-Projeye katkı sağlamak için aşağıdaki adımlar izlenebilir:
-
-1. Repoyu fork'layın.
-2. Yeni bir branch oluşturun.
-3. Değişikliklerinizi yapın.
-4. Gerekli testleri çalıştırın.
-5. Pull request oluşturun.
-
-Örnek branch isimlendirmesi:
-
-```text
-feature/reservation-report
-fix/payment-refund-bug
-docs/update-readme
-```
+| Alan | Öneri ve Gerekçe |
+|------|-------|
+| **Veritabanı** | H2 dosya veritabanı yerine ölçeklenebilir ve eşzamanlı işlemi destekleyen **PostgreSQL** veya **MySQL** kullanılmalıdır. |
+| **Kimlik Doğrulama** | Frontend tabanlı auth (React Router koruması) güvenli değildir. Backend'e **Spring Security + JWT (JSON Web Token)** mekanizması entegre edilerek tüm API uç noktaları güvence altına alınmalıdır. |
+| **Şifreleme** | Kullanıcı şifreleri veritabanına kaydedilmeden önce **BCrypt** gibi bir algoritma ile özetlenmelidir (hashlenmelidir). |
+| **CORS Ayarları** | Backend tarafında sadece üretim frontend domainlerine istek izni tanımlanmalıdır. |
+| **Yapılandırma** | Gizli anahtarlar, JWT token sırları ve veritabanı bilgileri kod içerisinden alınıp **Environment Variable (.env)** dosyalarına taşınmalıdır. |
+| **Sunucu** | Frontend (React) için **NGINX**, Backend için Docker/Kubernetes container yapısı tercih edilmeli ve CI/CD süreçleri oluşturulmalıdır. |
 
 ---
 
 ## Lisans
 
-Bu proje için henüz bir lisans bilgisi belirtilmemiştir.
-
-Lisans eklemek isterseniz `LICENSE` dosyası oluşturabilir ve README içerisinde lisans türünü belirtebilirsiniz.
+Bu proje için henüz bir lisans belirlenmemiştir.

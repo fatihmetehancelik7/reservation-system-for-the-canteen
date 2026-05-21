@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllHolidays, createHoliday, deleteHoliday } from '../services/holidayService';
 import Card from '../components/Card';
 import Table from '../components/Table';
@@ -6,51 +7,52 @@ import FormInput from '../components/FormInput';
 import { Plus, Trash2 } from 'lucide-react';
 
 const AdminHolidays = () => {
-    const [holidays, setHolidays] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [formData, setFormData] = useState({ tarih: '', aciklama: '' });
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    const holidaysQuery = useQuery({
+        queryKey: ['holidays'],
+        queryFn: getAllHolidays,
+        select: (data) => [...data].sort((a, b) => new Date(a.tarih) - new Date(b.tarih)),
+    });
 
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const data = await getAllHolidays();
-            setHolidays(data.sort((a, b) => new Date(a.tarih) - new Date(b.tarih)));
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const createHolidayMutation = useMutation({
+        mutationFn: createHoliday,
+        onSuccess: () => {
+            setFormData({ tarih: '', aciklama: '' });
+            queryClient.invalidateQueries({ queryKey: ['holidays'] });
+            queryClient.invalidateQueries({ queryKey: ['refunds'] });
+        },
+        onError: (err) => {
+            setError(err.response?.data?.error || 'Hata oluştu');
+        },
+    });
+
+    const deleteHolidayMutation = useMutation({
+        mutationFn: deleteHoliday,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['holidays'] });
+            queryClient.invalidateQueries({ queryKey: ['refunds'] });
+        },
+        onError: () => {
+            alert('Hata oluştu');
+        },
+    });
 
     const handleInputChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
         setError('');
-        try {
-            await createHoliday(formData);
-            setFormData({ tarih: '', aciklama: '' });
-            loadData();
-        } catch (err) {
-            setError(err.response?.data?.error || 'Hata oluştu');
-        }
+        createHolidayMutation.mutate(formData);
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = (id) => {
         if (!window.confirm('Bu tatil gününü silmek istediğinize emin misiniz?')) return;
-        try {
-            await deleteHoliday(id);
-            loadData();
-        } catch (err) {
-            alert('Hata oluştu');
-        }
+        deleteHolidayMutation.mutate(id);
     };
 
     const columns = [
@@ -60,7 +62,7 @@ const AdminHolidays = () => {
             field: 'actions',
             header: 'İşlemler',
             render: (row) => (
-                <button className="btn btn-danger" onClick={() => handleDelete(row.id)}>
+                <button className="btn btn-danger" onClick={() => handleDelete(row.id)} disabled={deleteHolidayMutation.isPending}>
                     <Trash2 size={16} />
                 </button>
             )
@@ -77,14 +79,20 @@ const AdminHolidays = () => {
                     <form onSubmit={handleSubmit}>
                         <FormInput label="Tarih" type="date" name="tarih" value={formData.tarih} onChange={handleInputChange} required />
                         <FormInput label="Açıklama" name="aciklama" value={formData.aciklama} onChange={handleInputChange} required />
-                        <button type="submit" className="btn btn-primary mt-4" style={{ width: '100%' }}>
-                            <Plus size={20} className="inline me-2" /> Ekle
+                        <button type="submit" className="btn btn-primary mt-4" style={{ width: '100%' }} disabled={createHolidayMutation.isPending}>
+                            <Plus size={20} className="inline me-2" /> {createHolidayMutation.isPending ? 'Ekleniyor...' : 'Ekle'}
                         </button>
                     </form>
                 </Card>
 
                 <Card title="Tanımlı Tatil Günleri">
-                    {loading ? <p>Yükleniyor...</p> : <Table columns={columns} data={holidays} />}
+                    {holidaysQuery.isError ? (
+                        <div className="text-danger">Tatil günleri yüklenirken hata oluştu.</div>
+                    ) : holidaysQuery.isLoading ? (
+                        <p>Yükleniyor...</p>
+                    ) : (
+                        <Table columns={columns} data={holidaysQuery.data ?? []} />
+                    )}
                 </Card>
             </div>
         </div>

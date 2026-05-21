@@ -1,16 +1,8 @@
-import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
 const Layout = () => {
-    const { user } = useAuth();
-
-    if (!user) {
-        return <Navigate to="/login" replace />;
-    }
-
     return (
         <div className="layout">
             <Sidebar />

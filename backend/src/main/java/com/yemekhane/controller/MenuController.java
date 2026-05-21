@@ -2,6 +2,7 @@ package com.yemekhane.controller;
 
 import com.yemekhane.dto.MonthlyMenuDto;
 import com.yemekhane.service.MenuService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +22,7 @@ public class MenuController {
     }
 
     @PostMapping
-    public ResponseEntity<MonthlyMenuDto> createMenu(@RequestBody MonthlyMenuDto request) {
+    public ResponseEntity<MonthlyMenuDto> createMenu(@Valid @RequestBody MonthlyMenuDto request) {
         return ResponseEntity.ok(menuService.createMenu(request));
     }
 

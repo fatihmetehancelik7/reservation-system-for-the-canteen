@@ -1,18 +1,20 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useState, useContext } from 'react';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
+    const [user, setUser] = useState(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            try {
+                return JSON.parse(storedUser);
+            } catch {
+                localStorage.removeItem('user');
+            }
         }
-        setLoading(false);
-    }, []);
+        return null;
+    });
 
     const login = (userData) => {
         setUser(userData);
@@ -23,8 +25,6 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         localStorage.removeItem('user');
     };
-
-    if (loading) return <div>Yükleniyor...</div>;
 
     return (
         <AuthContext.Provider value={{ user, login, logout }}>

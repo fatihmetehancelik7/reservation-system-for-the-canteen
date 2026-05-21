@@ -2,7 +2,12 @@ package com.yemekhane.controller;
 
 import com.yemekhane.dto.HolidayDto;
 import com.yemekhane.dto.RefundRecordDto;
+import com.yemekhane.entity.Role;
+import com.yemekhane.entity.User;
+import com.yemekhane.exception.BusinessException;
 import com.yemekhane.service.HolidayService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +27,7 @@ public class HolidayController {
     }
 
     @PostMapping
-    public ResponseEntity<HolidayDto> createHoliday(@RequestBody HolidayDto request) {
+    public ResponseEntity<HolidayDto> createHoliday(@Valid @RequestBody HolidayDto request) {
         return ResponseEntity.ok(holidayService.createHoliday(request));
     }
 
@@ -38,7 +43,14 @@ public class HolidayController {
     }
 
     @GetMapping("/refunds/user/{userId}")
-    public ResponseEntity<List<RefundRecordDto>> getUserRefunds(@PathVariable Long userId) {
+    public ResponseEntity<List<RefundRecordDto>> getUserRefunds(@PathVariable Long userId, HttpServletRequest request) {
+        User authenticatedUser = (User) request.getAttribute("authenticatedUser");
+        if (authenticatedUser == null) {
+            throw new BusinessException("Oturum bulunamadı.");
+        }
+        if (authenticatedUser.getRol() != Role.ADMIN && !authenticatedUser.getId().equals(userId)) {
+            throw new BusinessException("Başka bir kullanıcının iadelerine erişemezsiniz.");
+        }
         return ResponseEntity.ok(holidayService.getUserRefunds(userId));
     }
 }
