@@ -11,6 +11,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.yemekhane.security.UserDetailsImpl;
 
 import java.util.List;
 
@@ -21,6 +24,7 @@ public class ReservationController {
 
     private final ReservationService reservationService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<MonthlyReservationDto>> getAllReservations() {
         return ResponseEntity.ok(reservationService.getAllReservations());
@@ -45,11 +49,12 @@ public class ReservationController {
     }
 
     private void assertUserCanAccess(Long userId, HttpServletRequest request) {
-        User authenticatedUser = (User) request.getAttribute("authenticatedUser");
-        if (authenticatedUser == null) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal == null || "anonymousUser".equals(principal)) {
             throw new BusinessException("Oturum bulunamadı.");
         }
-        if (authenticatedUser.getRol() != Role.ADMIN && !authenticatedUser.getId().equals(userId)) {
+        UserDetailsImpl authenticatedUser = (UserDetailsImpl) principal;
+        if (authenticatedUser.getRoleEnum() != Role.ADMIN && !authenticatedUser.getId().equals(userId)) {
             throw new BusinessException("Başka bir kullanıcının verilerine erişemezsiniz.");
         }
     }

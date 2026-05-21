@@ -11,6 +11,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.yemekhane.security.UserDetailsImpl;
 
 import java.util.List;
 
@@ -26,17 +29,20 @@ public class HolidayController {
         return ResponseEntity.ok(holidayService.getAllHolidays());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<HolidayDto> createHoliday(@Valid @RequestBody HolidayDto request) {
         return ResponseEntity.ok(holidayService.createHoliday(request));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteHoliday(@PathVariable Long id) {
         holidayService.deleteHoliday(id);
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/refunds")
     public ResponseEntity<List<RefundRecordDto>> getAllRefunds() {
         return ResponseEntity.ok(holidayService.getAllRefunds());
@@ -44,11 +50,12 @@ public class HolidayController {
 
     @GetMapping("/refunds/user/{userId}")
     public ResponseEntity<List<RefundRecordDto>> getUserRefunds(@PathVariable Long userId, HttpServletRequest request) {
-        User authenticatedUser = (User) request.getAttribute("authenticatedUser");
-        if (authenticatedUser == null) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal == null || "anonymousUser".equals(principal)) {
             throw new BusinessException("Oturum bulunamadı.");
         }
-        if (authenticatedUser.getRol() != Role.ADMIN && !authenticatedUser.getId().equals(userId)) {
+        UserDetailsImpl authenticatedUser = (UserDetailsImpl) principal;
+        if (authenticatedUser.getRoleEnum() != Role.ADMIN && !authenticatedUser.getId().equals(userId)) {
             throw new BusinessException("Başka bir kullanıcının iadelerine erişemezsiniz.");
         }
         return ResponseEntity.ok(holidayService.getUserRefunds(userId));

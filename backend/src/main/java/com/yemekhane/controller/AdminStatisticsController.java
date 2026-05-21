@@ -8,14 +8,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 /**
  * Admin-only statistics endpoints.
- * TODO: Add role-based security guard when Spring Security is introduced.
- *       Currently, admin-only access is enforced at the frontend routing layer.
  */
 @RestController
 @RequestMapping("/api/admin/statistics")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminStatisticsController {
 
     private final AdminStatisticsService statisticsService;
