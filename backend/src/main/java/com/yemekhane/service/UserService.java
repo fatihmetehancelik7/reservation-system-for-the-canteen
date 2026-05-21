@@ -48,4 +48,10 @@ public class UserService {
         u.setRol(request.getRol() != null ? request.getRol() : Role.KULLANICI);
         return UserDto.fromEntity(userRepository.save(u));
     }
+
+    public List<UserDto> createUsers(List<UserDto> requests) {
+        return requests.stream()
+                .map(this::createUser)
+                .collect(Collectors.toList());
+    }
 }

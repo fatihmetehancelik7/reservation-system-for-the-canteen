@@ -44,10 +44,10 @@ Yemekhane Rezervasyon Sistemi, kurum çalışanlarının aylık yemek rezervasyo
 
 | Özellik | Açıklama |
 |---------|----------|
-| **Menü Yönetimi** | Günlük yemek listelerini tarih bazlı ekleme, düzenleme, silme |
+| **Menü Yönetimi** | Günlük yemek listelerini tek tek veya toplu olarak (Excel/TXT formatında) ekleme, düzenleme ve silme |
 | **Tatil Günü Yönetimi** | Tatil ilan edilen günlerde otomatik iade kaydı oluşturulur |
-| **Rezervasyon Kayıtları** | Tüm kullanıcıların rezervasyonlarını listeleme ve filtreleme |
-| **Kullanıcı Yönetimi** | Yeni kullanıcı ekleme (modal form), rol atama, arama ve filtreleme |
+| **Rezervasyon Kayıtları** | Tüm rezervasyonları listeleme; tıklandığında seçilen günlerin ve menülerin detaylı görünümü |
+| **Kullanıcı Yönetimi** | Tekli veya toplu (Excel üzerinden veya araya virgül koyarak) yeni kullanıcı ekleme, arama ve filtreleme |
 | **İstatistikler / Raporlama** | Aylık gelir, rezervasyon sayısı, aktif kullanıcı ve iade toplamları gibi operasyonel metrikler |
 
 ---

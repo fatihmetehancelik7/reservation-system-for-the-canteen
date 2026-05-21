@@ -26,9 +26,19 @@ public class MenuController {
         return ResponseEntity.ok(menuService.createMenu(request));
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<List<MonthlyMenuDto>> createMenus(@RequestBody List<MonthlyMenuDto> requests) {
+        return ResponseEntity.ok(menuService.createMenus(requests));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMenu(@PathVariable Long id) {
         menuService.deleteMenu(id);
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MonthlyMenuDto> updateMenu(@PathVariable Long id, @Valid @RequestBody MonthlyMenuDto request) {
+        return ResponseEntity.ok(menuService.updateMenu(id, request));
     }
 }

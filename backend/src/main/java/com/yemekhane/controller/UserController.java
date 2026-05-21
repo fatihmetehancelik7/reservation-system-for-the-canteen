@@ -30,4 +30,9 @@ public class UserController {
     public ResponseEntity<UserDto> createUser(@RequestBody UserDto request) {
         return ResponseEntity.ok(userService.createUser(request));
     }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<UserDto>> createUsers(@RequestBody List<UserDto> requests) {
+        return ResponseEntity.ok(userService.createUsers(requests));
+    }
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { getAllReservations } from '../services/reservationService';
 import { getAllRefunds } from '../services/holidayService';
+import { getMenusByMonth } from '../services/menuService';
 import Card from '../components/Card';
 import Table from '../components/Table';
 import { Users, DollarSign, RefreshCcw, AlertTriangle } from 'lucide-react';
@@ -16,9 +17,16 @@ const AdminReservations = () => {
         ],
     });
 
+    const menusQuery = useQuery({
+        queryKey: ['menus', selectedReservation?.yil, selectedReservation?.ay],
+        queryFn: () => getMenusByMonth(selectedReservation.yil, selectedReservation.ay),
+        enabled: !!selectedReservation,
+    });
+
     const reservations = reservationsQuery.data ?? [];
     const refunds = refundsQuery.data ?? [];
     const loading = reservationsQuery.isLoading || refundsQuery.isLoading;
+    const menus = menusQuery.data ?? [];
 
     const reservationColumns = [
         { field: 'islemTarihi', header: 'İşlem Tarihi', render: (row) => new Date(row.islemTarihi).toLocaleString('tr-TR') },
@@ -179,15 +187,32 @@ const AdminReservations = () => {
                                 </div>
 
                                 {selectedReservation.secilenGunler?.length > 0 ? (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-                                        {[...selectedReservation.secilenGunler].sort().map(dateStr => (
-                                            <span
-                                                key={dateStr}
-                                                style={{ padding: '0.45rem 0.65rem', background: '#EEF2FF', color: 'var(--primary)', borderRadius: '6px', fontWeight: 600 }}
-                                            >
-                                                {new Date(dateStr).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'short' })}
-                                            </span>
-                                        ))}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                                        {[...selectedReservation.secilenGunler].sort().map(dateStr => {
+                                            const matchingMenu = menus.find(m => m.tarih === dateStr);
+                                            return (
+                                                <div
+                                                    key={dateStr}
+                                                    style={{ 
+                                                        padding: '0.6rem 1rem', 
+                                                        background: '#EEF2FF', 
+                                                        color: 'var(--text-main)', 
+                                                        borderRadius: '8px', 
+                                                        fontWeight: 500,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '1rem'
+                                                    }}
+                                                >
+                                                    <div style={{ color: 'var(--primary)', fontWeight: 600, minWidth: '120px' }}>
+                                                        {new Date(dateStr).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'short' })}
+                                                    </div>
+                                                    <div style={{ flex: 1, fontSize: '0.95rem' }}>
+                                                        {matchingMenu ? matchingMenu.yemekListesi : <span style={{color: '#94a3b8', fontStyle: 'italic'}}>Menü bilgisi bulunamadı</span>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>Bu rezervasyonda aktif gün bulunmuyor.</div>
