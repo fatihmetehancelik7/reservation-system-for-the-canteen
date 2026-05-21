@@ -140,14 +140,23 @@ const MonthlySelection = () => {
         let oldDayCnt = 0;
         let diffDays = 0;
 
+        let oldDaysArr = [];
+
         if (existingForMonth) {
-            oldDayCnt = (existingForMonth.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
+            oldDaysArr = (existingForMonth.secilenGunler ?? []).filter(d => !holidays.includes(d));
+            oldDayCnt = oldDaysArr.length;
         }
 
         if (pendingDays !== undefined) {
-            dayCnt = pendingDays.filter(d => !holidays.includes(d)).length;
+            const validPendingDays = pendingDays.filter(d => !holidays.includes(d));
+            dayCnt = validPendingDays.length;
             isPending = true;
-            isChanged = dayCnt !== oldDayCnt;
+            
+            // Gerçekten değiştiğini anlamak için sadece sayıya değil içeriğe de bakmalıyız
+            const sortedPending = [...validPendingDays].sort();
+            const sortedOld = [...oldDaysArr].sort();
+            isChanged = JSON.stringify(sortedPending) !== JSON.stringify(sortedOld);
+            
             diffDays = dayCnt - oldDayCnt;
         } else if (existingForMonth) {
             dayCnt = oldDayCnt;
