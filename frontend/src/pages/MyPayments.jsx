@@ -1,16 +1,33 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { getUserTransactions } from '../services/reservationService';
 import { getUserRefunds, markRefunded } from '../services/holidayService';
 import Card from '../components/Card';
 import Table from '../components/Table';
-import { CreditCard, RefreshCcw, AlertTriangle, DollarSign } from 'lucide-react';
+import { CreditCard, RefreshCcw, AlertTriangle, DollarSign, CheckCheck } from 'lucide-react';
 
 const MyPayments = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('payments');
+    const [bulkLoading, setBulkLoading] = useState(false);
     const queryClient = useQueryClient();
+
+    const handleBulkMarkRefunded = useCallback(async () => {
+        const pending = refunds.filter(r => !r.isRefunded);
+        if (pending.length === 0) return;
+        const total = pending.reduce((s, r) => s + r.iadeEdilen, 0);
+        if (!window.confirm(`Toplam ${total} TL tutarındaki ${pending.length} iade kalemini nakit/kredi olarak tümünü aldığınızı onaylıyor musunuz?`)) return;
+        setBulkLoading(true);
+        try {
+            await Promise.all(pending.map(r => markRefunded(r.id)));
+            queryClient.invalidateQueries(['refunds', 'user', user.id]);
+        } catch (e) {
+            alert('Toplu işlem sırasında hata oluştu.');
+        } finally {
+            setBulkLoading(false);
+        }
+    }, [refunds, queryClient, user]);
     const [transactionsQuery, refundsQuery] = useQueries({
         queries: [
             { queryKey: ['transactions', 'user', user?.id], queryFn: () => getUserTransactions(user.id), enabled: !!user?.id },
@@ -225,7 +242,22 @@ const MyPayments = () => {
                             <p>Henüz iptal veya iade bulunmamaktadır.</p>
                         </div>
                     ) : (
-                        <Table columns={refundColumns} data={refunds} />
+                        <>
+                            {refunds.some(r => !r.isRefunded) && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#059669', borderColor: '#059669' }}
+                                        onClick={handleBulkMarkRefunded}
+                                        disabled={bulkLoading}
+                                    >
+                                        <CheckCheck size={16} />
+                                        {bulkLoading ? 'İşleniyor...' : `Tümünü İade Aldım (${refunds.filter(r => !r.isRefunded).reduce((s, r) => s + r.iadeEdilen, 0)} TL)`}
+                                    </button>
+                                </div>
+                            )}
+                            <Table columns={refundColumns} data={refunds} />
+                        </>
                     )
                 )}
             </Card>
