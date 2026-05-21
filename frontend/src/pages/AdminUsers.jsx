@@ -532,7 +532,7 @@ const BulkAddUserModal = ({ onClose, onSuccess }) => {
 
 // ─── Success Toast ─────────────────────────────────────────────────────────────
 
-const Toast = ({ name, onClose }) => (
+const Toast = ({ title, description, onClose }) => (
     <div style={{
         position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 2000,
         background: 'white', borderRadius: 12, padding: '1rem 1.5rem',
@@ -544,8 +544,8 @@ const Toast = ({ name, onClose }) => (
             <CheckCircle2 size={20} />
         </div>
         <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{name} eklendi!</div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Kullanıcı başarıyla oluşturuldu.</div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{title}</div>
+            {description && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{description}</div>}
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
             <X size={16} />
@@ -559,7 +559,7 @@ const AdminUsers = () => {
     const [showModal, setShowModal]   = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
-    const [toast, setToast]           = useState(null);   // { name, action }
+    const [toast, setToast]           = useState(null);   // { title, description }
     const [search, setSearch]         = useState('');
     const [roleFilter, setRoleFilter] = useState('ALL');
 
@@ -574,7 +574,7 @@ const AdminUsers = () => {
         mutationFn: deleteUser,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
-            setToast({ name: 'Kullanıcı başarıyla silindi!', action: 'silindi' });
+            setToast({ title: 'Başarılı', description: 'Kullanıcı sistemden tamamen silindi.' });
             setTimeout(() => setToast(null), 4000);
         },
         onError: (err) => {
@@ -590,19 +590,19 @@ const AdminUsers = () => {
 
     const handleEditSuccess = (data) => {
         setEditingUser(null);
-        setToast({ name: `${data.ad} ${data.soyad}`, action: 'güncellendi' });
+        setToast({ title: 'Güncellendi', description: `${data.ad} ${data.soyad} başarıyla güncellendi.` });
         setTimeout(() => setToast(null), 4000);
     };
 
     const handleSuccess = (data) => {
         setShowModal(false);
-        setToast({ name: `${data.ad} ${data.soyad}`, action: 'eklendi' });
+        setToast({ title: 'Eklendi', description: `${data.ad} ${data.soyad} başarıyla eklendi.` });
         setTimeout(() => setToast(null), 4000);
     };
 
     const handleBulkSuccess = (dataArray) => {
         setShowBulkModal(false);
-        setToast({ name: `${dataArray.length} kullanıcı`, action: 'eklendi' });
+        setToast({ title: 'Eklendi', description: `${dataArray.length} kullanıcı başarıyla eklendi.` });
         setTimeout(() => setToast(null), 4000);
     };
 
@@ -784,7 +784,7 @@ const AdminUsers = () => {
             {showModal && <AddUserModal onClose={() => setShowModal(false)} onSuccess={handleSuccess} />}
             {showBulkModal && <BulkAddUserModal onClose={() => setShowBulkModal(false)} onSuccess={handleBulkSuccess} />}
             {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSuccess={handleEditSuccess} />}
-            {toast     && <Toast name={`${toast.name} ${toast.action || ''}`} onClose={() => setToast(null)} />}
+            {toast     && <Toast title={toast.title} description={toast.description} onClose={() => setToast(null)} />}
         </div>
     );
 };
