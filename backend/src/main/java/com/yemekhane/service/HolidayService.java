@@ -62,8 +62,17 @@ public class HolidayService {
             refund.setTatilTarihi(tarih);
             refund.setTatilAciklama(aciklama);
             refund.setIadeEdilen(100.0); // 100 TL per day
+            refund.setIsRefunded(false);
             refundRecordRepository.save(refund);
         }
+    }
+
+    @Transactional
+    public void markRefunded(Long id) {
+        RefundRecord record = refundRecordRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("İade kaydı bulunamadı."));
+        record.setIsRefunded(true);
+        refundRecordRepository.save(record);
     }
 
     public void deleteHoliday(Long id) {

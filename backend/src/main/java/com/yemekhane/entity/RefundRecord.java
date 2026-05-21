@@ -27,6 +27,9 @@ public class RefundRecord {
     private Double iadeEdilen;           // Amount refunded (100.0 per day)
     private LocalDateTime islemTarihi;   // When the refund was processed
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean isRefunded = false;  // Whether the user has marked it as refunded
+
     @PrePersist
     public void prePersist() {
         this.islemTarihi = LocalDateTime.now(ZoneId.of("Europe/Istanbul"));

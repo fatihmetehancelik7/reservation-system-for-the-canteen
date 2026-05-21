@@ -13,6 +13,7 @@ public class RefundRecordDto {
     private String tatilAciklama;
     private Double iadeEdilen;
     private LocalDateTime islemTarihi;
+    private Boolean isRefunded;
 
     public static RefundRecordDto fromEntity(RefundRecord r) {
         RefundRecordDto dto = new RefundRecordDto();
@@ -22,6 +23,7 @@ public class RefundRecordDto {
         dto.setTatilAciklama(r.getTatilAciklama());
         dto.setIadeEdilen(r.getIadeEdilen());
         dto.setIslemTarihi(r.getIslemTarihi());
+        dto.setIsRefunded(r.getIsRefunded());
         return dto;
     }
 }

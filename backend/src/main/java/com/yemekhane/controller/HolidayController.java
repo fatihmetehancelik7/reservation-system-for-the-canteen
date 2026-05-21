@@ -60,4 +60,10 @@ public class HolidayController {
         }
         return ResponseEntity.ok(holidayService.getUserRefunds(userId));
     }
+
+    @PutMapping("/refunds/{id}/mark-refunded")
+    public ResponseEntity<Void> markRefunded(@PathVariable Long id) {
+        holidayService.markRefunded(id);
+        return ResponseEntity.ok().build();
+    }
 }

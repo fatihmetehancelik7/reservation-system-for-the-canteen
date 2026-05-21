@@ -120,12 +120,12 @@ public class ReservationServiceImpl implements ReservationService {
             throw new BusinessException("Rezervasyon kullanıcı bilgisi ile istek kullanıcı bilgisi uyuşmuyor.");
         }
 
-        validateReservationRequest(request, reservation);
-        createRefundsForCancelledDays(reservation, request);
-
         int oldDays = reservation.getSecilenGunSayisi() != null ? reservation.getSecilenGunSayisi() : 0;
         int newDays = request.getSecilenGunler().size();
         int diffDays = newDays - oldDays;
+
+        validateReservationRequest(request, reservation);
+        createRefundsForCancelledDays(reservation, request, diffDays);
 
         applyReservationValues(reservation, request);
 
@@ -228,9 +228,9 @@ public class ReservationServiceImpl implements ReservationService {
         }
     }
 
-    private void createRefundsForCancelledDays(MonthlyReservation reservation, ReservationRequest request) {
-        if (reservation.getReservationDays() == null) {
-            return;
+    private void createRefundsForCancelledDays(MonthlyReservation reservation, ReservationRequest request, int diffDays) {
+        if (reservation.getReservationDays() == null || diffDays >= 0) {
+            return; // Only create refunds if there's a net reduction in days
         }
 
         Set<LocalDate> requestedDates = new HashSet<>(request.getSecilenGunler());
@@ -240,7 +240,12 @@ public class ReservationServiceImpl implements ReservationService {
                 .filter(date -> date.isAfter(LocalDate.now(ZoneId.of(timezone))))
                 .collect(Collectors.toList());
 
-        for (LocalDate date : cancelledDates) {
+        int netCancelledCount = Math.abs(diffDays);
+        List<LocalDate> netCancelledDates = cancelledDates.stream()
+                .limit(netCancelledCount)
+                .collect(Collectors.toList());
+
+        for (LocalDate date : netCancelledDates) {
             if (refundRecordRepository.existsByUserIdAndTatilTarihi(reservation.getUser().getId(), date)) {
                 continue;
             }
@@ -250,6 +255,7 @@ public class ReservationServiceImpl implements ReservationService {
             refund.setTatilTarihi(date);
             refund.setTatilAciklama("Kullanıcı rezervasyon iptali");
             refund.setIadeEdilen(dailyPrice);
+            refund.setIsRefunded(false);
             refundRecordRepository.save(refund);
         }
     }

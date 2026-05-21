@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { getUserTransactions } from '../services/reservationService';
-import { getUserRefunds } from '../services/holidayService';
+import { getUserRefunds, markRefunded } from '../services/holidayService';
 import Card from '../components/Card';
 import Table from '../components/Table';
 import { CreditCard, RefreshCcw, AlertTriangle, DollarSign } from 'lucide-react';
@@ -10,6 +10,7 @@ import { CreditCard, RefreshCcw, AlertTriangle, DollarSign } from 'lucide-react'
 const MyPayments = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('payments');
+    const queryClient = useQueryClient();
     const [transactionsQuery, refundsQuery] = useQueries({
         queries: [
             { queryKey: ['transactions', 'user', user?.id], queryFn: () => getUserTransactions(user.id), enabled: !!user?.id },
@@ -62,49 +63,53 @@ const MyPayments = () => {
         { field: 'tatilAciklama', header: 'Neden' },
         {
             field: 'iadeEdilen',
-            header: 'Durum / Tutar',
-            render: (row) => {
-                if (row.tatilAciklama === 'Kullanıcı rezervasyon iptali') {
-                    return (
-                        <span style={{ color: '#6B7280', fontWeight: '600', fontSize: '0.9rem' }}>
-                            Net Ödemeden Düşüldü
-                        </span>
-                    );
-                }
-                return (
-                    <span style={{ color: '#10B981', fontWeight: '700', fontSize: '1rem' }}>
-                        + {row.iadeEdilen} TL
-                    </span>
-                );
-            }
+            header: 'Tutar',
+            render: (row) => (
+                <span style={{ color: '#10B981', fontWeight: '700', fontSize: '1rem' }}>
+                    {row.iadeEdilen} TL
+                </span>
+            )
         },
         {
             field: 'status',
             header: 'İşlem',
             render: (row) => {
-                if (row.tatilAciklama === 'Kullanıcı rezervasyon iptali') {
+                if (row.isRefunded) {
                     return (
-                        <span style={{ padding: '0.25rem 0.5rem', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
-                            İPTAL EDİLDİ
+                        <span style={{ padding: '0.25rem 0.5rem', background: '#D1FAE5', color: '#065F46', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+                            İADE ALINDI
                         </span>
                     );
                 }
                 return (
-                    <span style={{ padding: '0.25rem 0.5rem', background: '#FEF3C7', color: '#92400E', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
-                        İADE EDİLDİ
-                    </span>
+                    <button 
+                        className="btn btn-primary" 
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                        onClick={async () => {
+                            if (window.confirm('Bu tutarı nakit/kredi olarak geri aldığınızı onaylıyor musunuz?')) {
+                                try {
+                                    await markRefunded(row.id);
+                                    queryClient.invalidateQueries(['refunds', 'user', user.id]);
+                                } catch (e) {
+                                    alert('İşlem başarısız.');
+                                }
+                            }
+                        }}
+                    >
+                        İade Aldım
+                    </button>
                 );
             }
         }
     ];
 
-    const holidayRefunds = refunds.filter(r => r.tatilAciklama !== 'Kullanıcı rezervasyon iptali');
-    
     const totalPaid = transactions.reduce((sum, r) => {
-        if (r.islemTipi === 'İPTAL') return sum - r.islemTutari;
+        if (r.islemTipi === 'İPTAL') return sum; // İptaller fiyattan düşmez, iade olarak hesaba katılır
         return sum + r.islemTutari;
     }, 0);
-    const totalRefunded = holidayRefunds.reduce((sum, r) => sum + r.iadeEdilen, 0);
+    
+    // Yalnızca İade Alındı olarak işaretlenenler Toplam İadeye yansır
+    const totalRefunded = refunds.filter(r => r.isRefunded).reduce((sum, r) => sum + r.iadeEdilen, 0);
 
     const tabStyle = (tab) => ({
         padding: '0.65rem 1.5rem',
@@ -161,24 +166,22 @@ const MyPayments = () => {
                 </Card>
             </div>
 
-            {holidayRefunds.length > 0 && (
+            {refunds.some(r => !r.isRefunded) && (
                 <div style={{
-                    background: 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
-                    border: '1px solid #34D399',
+                    background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                    border: '1px solid #F59E0B',
                     borderRadius: '12px',
                     padding: '1rem 1.5rem',
                     marginBottom: '1.5rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    color: '#065F46'
+                    color: '#92400E'
                 }}>
-                    <AlertTriangle size={20} color="#10B981" />
+                    <AlertTriangle size={20} color="#D97706" />
                     <div>
-                        <strong>Tatil İade Bildirimi:</strong> Rezervasyon yaptığınız{' '}
-                        <strong>{holidayRefunds.length} gün</strong> tatil ilan edilmiş olup toplamda{' '}
-                        <strong>{totalRefunded} TL</strong> iade alacaksınız.
-                        Detaylar için "İadelerim" sekmesine bakınız.
+                        <strong>Bekleyen İadeleriniz Var:</strong> Henüz tahsil etmediğiniz{' '}
+                        <strong>{refunds.filter(r => !r.isRefunded).reduce((s, r) => s + r.iadeEdilen, 0)} TL</strong> iade tutarınız bulunmaktadır. Parayı aldığınızda tablodan "İade Aldım" olarak işaretleyiniz.
                     </div>
                 </div>
             )}
@@ -189,8 +192,8 @@ const MyPayments = () => {
                         <CreditCard size={18} /> Ödemelerim ({transactions.length})
                     </button>
                     <button style={tabStyle('refunds')} onClick={() => setActiveTab('refunds')}>
-                        <RefreshCcw size={18} /> İptal ve İadeler ({refunds.length})
-                        {holidayRefunds.length > 0 && (
+                        <RefreshCcw size={18} /> Bekleyen/Alınan İadeler ({refunds.length})
+                        {refunds.filter(r => !r.isRefunded).length > 0 && (
                             <span style={{
                                 background: '#EF4444',
                                 color: 'white',
@@ -203,7 +206,7 @@ const MyPayments = () => {
                                 justifyContent: 'center',
                                 fontWeight: 'bold'
                             }}>
-                                {holidayRefunds.length}
+                                {refunds.filter(r => !r.isRefunded).length}
                             </span>
                         )}
                     </button>
