@@ -385,10 +385,10 @@ const MonthlySelection = () => {
                                     const isEdit = isPending && !!existing;
                                     return (
                                         <div key={month}
-                                            onClick={() => setSelectedMonth(month)}
+                                            onClick={() => isEdit && setSelectedMonth(month)}
                                             style={{
                                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                padding: '0.55rem 0.85rem', cursor: 'pointer',
+                                                padding: '0.55rem 0.85rem', cursor: isEdit ? 'pointer' : 'default',
                                                 background: isCur ? '#EEF2FF' : 'var(--surface)',
                                                 borderBottom: idx < allMonthsBreakdown.length - 1 ? '1px solid var(--border)' : 'none',
                                                 transition: 'background 0.15s',
