@@ -33,9 +33,9 @@ Yemekhane Rezervasyon Sistemi, kurum çalışanlarının aylık yemek rezervasyo
 | Özellik | Açıklama |
 |---------|----------|
 | **Aylık Rezervasyon** | Takvimden hafta içi günleri seçerek rezervasyon oluşturma; günlerin altında o günkü yemek listesinin önizlemesi görüntülenir |
-| **Çoklu Ay Seçimi** | Haziran, Temmuz, Ağustos gibi birden fazla ay seçilip tek butonla ödeme yapılabilir |
+| **Çoklu Ay Toplu İşlem** | Haziran, Temmuz, Ağustos gibi birden fazla ayı tek bir 'sepet' mantığıyla seçip tek butonla işlem yapabilme |
 | **Toplam Tutar Görünümü** | Tüm seçili ayların genel toplamı ve ay ay döküm paneli |
-| **Rezervasyon Güncelleme** | Mevcut rezervasyona gün eklenip çıkarılabilir, fark tutarı gösterilir |
+| **Net Fark (Mahsuplaşma)** | Mevcut rezervasyonlara gün eklenip çıkarıldığında genel toplam üzerinden net fark hesaplanır; sadece net artı gün varsa ek ödeme alınır |
 | **Geçmiş Gün Kilitleme** | Bugün ve önceki günler takvimde kilitli gösterilir, seçilemez |
 | **İade Takibi** | Tatil ilan edilen günlerdeki iade kayıtları kullanıcı panelinde görüntülenir |
 | **Ödeme Geçmişi** | Tüm rezervasyon ve ödeme kayıtları liste hâlinde takip edilebilir |
@@ -240,8 +240,9 @@ Tüm API uç noktaları `http://localhost:8080/api` altında tanımlıdır.
 |--------|----------|----------|
 | `GET` | `/reservations` | Tüm rezervasyonlar |
 | `GET` | `/reservations/user/{userId}` | Kullanıcıya ait rezervasyonlar |
-| `POST` | `/reservations` | Rezervasyon oluştur |
-| `PUT` | `/reservations/{id}` | Rezervasyon güncelle |
+| `POST` | `/reservations/reserve` | Rezervasyon oluştur |
+| `PUT` | `/reservations/update/{id}` | Rezervasyon güncelle |
+| `POST` | `/reservations/bulk` | Toplu rezervasyon işlemi (Birden fazla ayı aynı anda gönderip net mahsuplaşma sağlar) |
 
 ### Tatil Günleri
 
@@ -272,12 +273,13 @@ Tüm API uç noktaları `http://localhost:8080/api` altında tanımlıdır.
 - Menü tanımlanmamış günler takvimde pasif görünür.
 - Tatil ilan edilen günler kırmızı olarak işaretlenir.
 
-### Çoklu Ay Ödeme
+### Çoklu Ay Ödeme ve Mahsuplaşma Sistemi (Bulk Update)
 
-- Kullanıcı farklı aylara geçerek seçim yapabilir.
-- Ödeme paneli tüm ayların **genel toplamını** anlık olarak gösterir.
-- **"Tümünü Öde"** butonu, bekleyen tüm yeni ay rezervasyonlarını sırayla API'ye gönderir.
-- Mevcut bir rezervasyonu olan ay için ayrı **"Güncelle"** butonu görünür.
+- Kullanıcı farklı aylara geçerek aynı ekrandan birden çok ayın seçimini yapabilir.
+- Ödeme paneli tüm ayların **genel toplamını** (Net Gün Farkını) anlık olarak gösterir.
+- Kullanıcı işlemi onayladığında, yapılan tüm eklemeler ve çıkarmalar **tek bir istekte (bulk)** sunucuya iletilir.
+- Sunucu genel net gün farkını hesaplar. Eğer net fark sıfırsa, kullanıcı aylar arasında (Örn: Temmuz'dan 2 iptal edip Ağustos'a 2 gün ekleme) geçiş yapmış olsa bile hiçbir iade veya ek ödeme oluşturulmaz. Sadece artış varsa 'Ek Ödeme', azalış varsa 'İade' kaydı oluşturulur.
+- Yeni sistemle farklı aylar arasındaki güncellemeler birbirini mahsup eder.
 
 ### Tatil ve İade
 

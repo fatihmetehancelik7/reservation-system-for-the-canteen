@@ -42,6 +42,12 @@ public class ReservationController {
         return ResponseEntity.ok(reservationService.createMonthlyReservation(request));
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<List<MonthlyReservationDto>> processBulkReservations(@Valid @RequestBody com.yemekhane.dto.BulkReservationRequest request, HttpServletRequest httpRequest) {
+        assertUserCanAccess(request.getUserId(), httpRequest);
+        return ResponseEntity.ok(reservationService.processBulkReservations(request));
+    }
+
     @PutMapping("/update/{id}")
     public ResponseEntity<MonthlyReservationDto> updateReservation(@PathVariable Long id, @Valid @RequestBody ReservationRequest request, HttpServletRequest httpRequest) {
         assertUserCanAccess(request.getUserId(), httpRequest);
