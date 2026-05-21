@@ -1,5 +1,4 @@
-
-const Table = ({ columns, data }) => {
+const Table = ({ columns, data, onRowClick, selectedRowId }) => {
     if (!data || data.length === 0) {
         return <div className="text-center py-4 text-muted">Kayıt bulunamadı.</div>;
     }
@@ -16,7 +15,14 @@ const Table = ({ columns, data }) => {
                 </thead>
                 <tbody>
                     {data.map((row, rowIndex) => (
-                        <tr key={rowIndex}>
+                        <tr
+                            key={row.id ?? rowIndex}
+                            onClick={() => onRowClick?.(row)}
+                            style={{
+                                cursor: onRowClick ? 'pointer' : 'default',
+                                background: selectedRowId === row.id ? '#EEF2FF' : undefined,
+                            }}
+                        >
                             {columns.map((col, colIndex) => (
                                 <td key={colIndex}>
                                     {col.render ? col.render(row) : row[col.field]}

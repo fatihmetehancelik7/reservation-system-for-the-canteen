@@ -34,7 +34,12 @@ const MonthlySelection = () => {
         () => reservations.find(r => r.yil === currentYear && r.ay === selectedMonth) ?? null,
         [reservations, selectedMonth]
     );
-    const selectedDays = selectedDaysByMonth[selectedMonth] ?? existingReservation?.secilenGunler ?? [];
+    const selectableExistingDays = useMemo(
+        () => (existingReservation?.secilenGunler ?? []).filter(dateStr => !holidays.includes(dateStr)),
+        [existingReservation, holidays]
+    );
+    const selectedDays = (selectedDaysByMonth[selectedMonth] ?? selectableExistingDays)
+        .filter(dateStr => !holidays.includes(dateStr));
     const loading = menusQuery.isLoading || holidaysQuery.isLoading || reservationsQuery.isLoading;
 
     const createReservationMutation = useMutation({
@@ -85,7 +90,8 @@ const MonthlySelection = () => {
         }
 
         setSelectedDaysByMonth(prev => {
-            const currentSelection = prev[selectedMonth] ?? existingReservation?.secilenGunler ?? [];
+            const currentSelection = (prev[selectedMonth] ?? selectableExistingDays)
+                .filter(dateStr => !holidays.includes(dateStr));
             const nextSelection = currentSelection.includes(dateStr)
                 ? currentSelection.filter(d => d !== dateStr)
                 : [...currentSelection, dateStr];

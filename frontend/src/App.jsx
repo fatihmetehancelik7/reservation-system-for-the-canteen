@@ -11,6 +11,7 @@ import MyPayments from './pages/MyPayments';
 import AdminHolidays from './pages/AdminHolidays';
 import AdminMenu from './pages/AdminMenu';
 import AdminReservations from './pages/AdminReservations';
+import AdminStatistics from './pages/AdminStatistics';
 import { getMenusByMonth } from './services/menuService';
 import { getAllHolidays, getAllRefunds, getUserRefunds } from './services/holidayService';
 import { getAllReservations, getUserReservations } from './services/reservationService';
@@ -109,6 +110,11 @@ const router = createBrowserRouter([
                   queryClient.ensureQueryData({ queryKey: ['refunds', 'all'], queryFn: getAllRefunds }),
                 ])),
                 element: <AdminReservations />,
+              },
+              {
+                path: 'admin/statistics',
+                loader: protectedLoader(['ADMIN']),
+                element: <AdminStatistics />,
               },
             ],
           },
