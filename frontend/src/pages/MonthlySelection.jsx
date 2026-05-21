@@ -65,6 +65,7 @@ const MonthlySelection = () => {
         mutationFn: createReservation,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reservations', 'user', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['transactions', 'user', user?.id] });
         },
     });
 
@@ -72,6 +73,7 @@ const MonthlySelection = () => {
         mutationFn: ({ id, data }) => updateReservation(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reservations', 'user', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['transactions', 'user', user?.id] });
             queryClient.invalidateQueries({ queryKey: ['refunds', 'user', user?.id] });
         },
     });
