@@ -14,6 +14,10 @@ public interface MonthlyReservationRepository extends JpaRepository<MonthlyReser
 
     List<MonthlyReservation> findByUserIdOrderByIslemTarihiDesc(Long userId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM MonthlyReservation e WHERE e.user.id = :userId")
+    void deleteByUserId(@Param("userId") Long userId);
+
     Optional<MonthlyReservation> findByUserIdAndYilAndAy(Long userId, Integer yil, Integer ay);
 
     long countByOdemeDurumu(PaymentStatus status);

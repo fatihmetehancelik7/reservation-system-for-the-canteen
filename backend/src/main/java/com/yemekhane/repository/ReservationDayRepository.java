@@ -14,6 +14,10 @@ public interface ReservationDayRepository extends JpaRepository<ReservationDay, 
 
     List<ReservationDay> findByMonthlyReservationId(Long monthlyReservationId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM ReservationDay e WHERE e.user.id = :userId")
+    void deleteByUserId(@org.springframework.data.repository.query.Param("userId") Long userId);
+
     List<ReservationDay> findByTarih(LocalDate tarih);
 
     boolean existsByTarih(LocalDate tarih);
