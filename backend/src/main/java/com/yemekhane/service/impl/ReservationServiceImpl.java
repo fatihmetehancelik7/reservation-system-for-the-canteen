@@ -122,17 +122,10 @@ public class ReservationServiceImpl implements ReservationService {
 
         int oldDays = reservation.getSecilenGunSayisi() != null ? reservation.getSecilenGunSayisi() : 0;
         int newDays = request.getSecilenGunler().size();
-
-        // Calculate which days were actually added vs cancelled
-        Set<LocalDate> oldDates = reservation.getReservationDays() == null ? Set.of()
-                : reservation.getReservationDays().stream().map(ReservationDay::getTarih).collect(Collectors.toSet());
-        Set<LocalDate> newDates = new HashSet<>(request.getSecilenGunler());
-
-        int addedDayCount = (int) newDates.stream().filter(d -> !oldDates.contains(d)).count();
-        int cancelledDayCount = (int) oldDates.stream().filter(d -> !newDates.contains(d)).count();
+        int diffDays = newDays - oldDays;
 
         validateReservationRequest(request, reservation);
-        createRefundsForCancelledDays(reservation, request);
+        createRefundsForCancelledDays(reservation, request, diffDays);
 
         applyReservationValues(reservation, request);
 
@@ -146,30 +139,16 @@ public class ReservationServiceImpl implements ReservationService {
 
         MonthlyReservation savedReservation = reservationRepository.save(reservation);
 
-        // Record payment transaction for added days (if any)
-        if (addedDayCount > 0) {
+        if (diffDays != 0) {
             PaymentTransaction transaction = new PaymentTransaction();
             transaction.setUser(reservation.getUser());
             transaction.setYil(request.getYil());
             transaction.setAy(request.getAy());
             transaction.setIslemTarihi(savedReservation.getIslemTarihi());
-            transaction.setIslemGunSayisi(addedDayCount);
-            transaction.setIslemTutari(addedDayCount * dailyPrice);
-            transaction.setIslemTipi("EK ÖDEME");
+            transaction.setIslemGunSayisi(diffDays);
+            transaction.setIslemTutari(Math.abs(diffDays * dailyPrice));
+            transaction.setIslemTipi(diffDays > 0 ? "EK ÖDEME" : "İPTAL");
             transactionRepository.save(transaction);
-        }
-
-        // Record payment transaction for cancelled days (as IPTAL)
-        if (cancelledDayCount > 0) {
-            PaymentTransaction cancelTx = new PaymentTransaction();
-            cancelTx.setUser(reservation.getUser());
-            cancelTx.setYil(request.getYil());
-            cancelTx.setAy(request.getAy());
-            cancelTx.setIslemTarihi(savedReservation.getIslemTarihi());
-            cancelTx.setIslemGunSayisi(cancelledDayCount);
-            cancelTx.setIslemTutari(cancelledDayCount * dailyPrice);
-            cancelTx.setIslemTipi("İPTAL");
-            transactionRepository.save(cancelTx);
         }
 
         return MonthlyReservationDto.fromEntity(savedReservation);
@@ -249,9 +228,9 @@ public class ReservationServiceImpl implements ReservationService {
         }
     }
 
-    private void createRefundsForCancelledDays(MonthlyReservation reservation, ReservationRequest request) {
-        if (reservation.getReservationDays() == null) {
-            return;
+    private void createRefundsForCancelledDays(MonthlyReservation reservation, ReservationRequest request, int diffDays) {
+        if (reservation.getReservationDays() == null || diffDays >= 0) {
+            return; // Only create refunds if there's a net reduction in days
         }
 
         Set<LocalDate> requestedDates = new HashSet<>(request.getSecilenGunler());
@@ -261,7 +240,12 @@ public class ReservationServiceImpl implements ReservationService {
                 .filter(date -> date.isAfter(LocalDate.now(ZoneId.of(timezone))))
                 .collect(Collectors.toList());
 
-        for (LocalDate date : cancelledDates) {
+        int netCancelledCount = Math.abs(diffDays);
+        List<LocalDate> netCancelledDates = cancelledDates.stream()
+                .limit(netCancelledCount)
+                .collect(Collectors.toList());
+
+        for (LocalDate date : netCancelledDates) {
             RefundRecord refund = new RefundRecord();
             refund.setUser(reservation.getUser());
             refund.setTatilTarihi(date);
