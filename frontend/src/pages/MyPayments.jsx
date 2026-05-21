@@ -5,7 +5,7 @@ import { getUserTransactions } from '../services/reservationService';
 import { getUserRefunds } from '../services/holidayService';
 import Card from '../components/Card';
 import Table from '../components/Table';
-import { CreditCard, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { CreditCard, RefreshCcw, AlertTriangle, DollarSign } from 'lucide-react';
 
 const MyPayments = () => {
     const { user } = useAuth();
@@ -102,7 +102,7 @@ const MyPayments = () => {
         <div className="fade-in">
             <h1 className="page-title">Ödeme Geçmişim</h1>
 
-            <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+            <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
                 <Card>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <div style={{ background: '#EEF2FF', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
@@ -122,6 +122,17 @@ const MyPayments = () => {
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Toplam İade</div>
                             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10B981' }}>+ {totalRefunded} TL</div>
+                        </div>
+                    </div>
+                </Card>
+                <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ background: '#D1FAE5', padding: '1rem', borderRadius: '50%', color: '#059669' }}>
+                            <DollarSign size={24} />
+                        </div>
+                        <div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Net Tutar</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#059669' }}>{totalPaid - totalRefunded} TL</div>
                         </div>
                     </div>
                 </Card>
