@@ -91,7 +91,7 @@ const MonthlySelection = () => {
 
         setSelectedDaysByMonth(prev => {
             const currentSelection = (prev[selectedMonth] ?? selectableExistingDays)
-                .filter(dateStr => !holidays.includes(dateStr));
+                .filter(d => !holidays.includes(d));
             const nextSelection = currentSelection.includes(dateStr)
                 ? currentSelection.filter(d => d !== dateStr)
                 : [...currentSelection, dateStr];
@@ -108,6 +108,7 @@ const MonthlySelection = () => {
         setSelectedMonth(Number(e.target.value));
     };
 
+    // Güncelleme / tek ay ödeme (var olan rezervasyon için)
     const handlePayment = async () => {
         if (selectedDays.length === 0 && !existingReservation) return;
 
@@ -150,27 +151,58 @@ const MonthlySelection = () => {
     const difference = totalPrice - oldTotalPrice;
     const isSaving = createReservationMutation.isPending || updateReservationMutation.isPending;
 
-    // Tüm ayların seçim özeti (mevcut rezervasyonlar + yeni seçimler)
+    // ── Tüm ayların özeti ──────────────────────────────────────────────────
     const monthName = (m) => new Date(2026, m - 1, 1).toLocaleDateString('tr-TR', { month: 'long' });
+
     const allMonthsBreakdown = Array.from({ length: 12 }, (_, i) => i + 1).reduce((acc, m) => {
         const existingForMonth = reservations.find(r => r.yil === currentYear && r.ay === m);
-        // Kullanıcının bu ay için yaptığı seçimler (varsa override, yoksa mevcut rezervasyon)
         const pendingDays = selectedDaysByMonth[m];
-        let days = 0;
-        let isPending = false; // henüz ödenmemiş yeni seçim
+        let dayCnt = 0;
+        let isPending = false;
         if (pendingDays !== undefined) {
-            // Kullanıcı bu ayı düzenledi
-            const filteredPending = pendingDays.filter(d => !holidays.includes(d));
-            days = filteredPending.length;
+            dayCnt = pendingDays.filter(d => !holidays.includes(d)).length;
             isPending = true;
         } else if (existingForMonth) {
-            days = (existingForMonth.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
+            dayCnt = (existingForMonth.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
         }
-        if (days > 0) acc.push({ month: m, days, isPending, existing: existingForMonth });
+        if (dayCnt > 0) acc.push({ month: m, days: dayCnt, isPending, existing: existingForMonth, pendingDays: selectedDaysByMonth[m] });
         return acc;
     }, []);
+
     const grandTotalDays = allMonthsBreakdown.reduce((s, x) => s + x.days, 0);
     const grandTotal     = grandTotalDays * 100;
+
+    // Henüz ödenmemiş (yeni rezervasyon bekleyen) aylar
+    const pendingNewMonths = allMonthsBreakdown.filter(x => x.isPending && !x.existing);
+    const pendingNewTotal  = pendingNewMonths.reduce((s, x) => s + x.days * 100, 0);
+    const hasPendingNew    = pendingNewMonths.length > 0;
+
+    // Tüm yeni ayları sırayla öde
+    const [isPayingAll, setIsPayingAll] = useState(false);
+    const handlePayAllPending = async () => {
+        if (!hasPendingNew) return;
+        const monthList = pendingNewMonths.map(x => monthName(x.month)).join(', ');
+        if (!window.confirm(`${monthList} ayları için toplam ${pendingNewTotal.toLocaleString('tr-TR')} TL ödeme yapılacaktır. Onaylıyor musunuz?`)) return;
+        setError('');
+        setIsPayingAll(true);
+        try {
+            for (const item of pendingNewMonths) {
+                const daysToSend = (item.pendingDays ?? []).filter(d => !holidays.includes(d));
+                await createReservationMutation.mutateAsync({
+                    userId: user.id,
+                    yil: currentYear,
+                    ay: item.month,
+                    secilenGunler: daysToSend,
+                });
+            }
+            setSelectedDaysByMonth({});
+            alert(`${pendingNewMonths.length} ay için toplam ${pendingNewTotal.toLocaleString('tr-TR')} TL ödeme alındı ve rezervasyonlar oluşturuldu!`);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Ödeme işlemi sırasında hata oluştu.');
+        } finally {
+            setIsPayingAll(false);
+        }
+    };
 
     return (
         <div className="fade-in">
@@ -202,6 +234,7 @@ const MonthlySelection = () => {
                 <p>Takvim yükleniyor...</p>
             ) : (
                 <div className="grid-2" style={{ gridTemplateColumns: '2fr 1fr' }}>
+                    {/* ── Takvim ────────────────────────────────────────────────── */}
                     <Card title="Gün Seçimi (Sadece Hafta İçi)">
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
                             {days.map(day => {
@@ -210,47 +243,34 @@ const MonthlySelection = () => {
                                 const now = new Date();
                                 const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
                                 const todayStr = localNow.toISOString().split('T')[0];
-                                const isPastOrToday = day.dateStr <= todayStr;
-                                const isLocked = isPastOrToday;
+                                const isLocked = day.dateStr <= todayStr;
 
                                 let bg = '#F9FAFB';
                                 let border = '1px solid #E5E7EB';
                                 let opacity = 1;
 
                                 if (day.isHoliday) {
-                                    bg = '#FEE2E2';
-                                    opacity = 0.6;
+                                    bg = '#FEE2E2'; opacity = 0.6;
                                 } else if (!day.menu) {
-                                    bg = '#F3F4F6';
-                                    opacity = 0.6;
+                                    bg = '#F3F4F6'; opacity = 0.6;
                                 } else if (isSelected) {
-                                    bg = '#EEF2FF';
-                                    border = '2px solid var(--primary)';
+                                    bg = '#EEF2FF'; border = '2px solid var(--primary)';
                                 }
-
-                                if (isLocked) {
-                                    opacity = 0.5;
-                                }
+                                if (isLocked) opacity = 0.5;
 
                                 return (
                                     <div
                                         key={day.dateStr}
                                         onClick={() => !isLocked && toggleDaySelection(day.dateStr, day.isHoliday, day.menu)}
                                         style={{
-                                            background: bg,
-                                            border: border,
-                                            opacity: opacity,
-                                            padding: '1rem',
-                                            borderRadius: '8px',
-                                            textAlign: 'center',
+                                            background: bg, border, opacity,
+                                            padding: '1rem', borderRadius: '8px', textAlign: 'center',
                                             cursor: isLocked ? 'not-allowed' : (isClickable ? 'pointer' : 'not-allowed'),
-                                            transition: 'all 0.2s',
-                                            position: 'relative'
+                                            transition: 'all 0.2s', position: 'relative'
                                         }}
                                     >
                                         <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{day.dayNum}</div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{day.dayName}</div>
-
                                         <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
                                             {day.isHoliday ? 'Tatil' : day.menu ? '100 TL' : 'Menü Yok'}
                                         </div>
@@ -260,7 +280,7 @@ const MonthlySelection = () => {
                                             </div>
                                         )}
                                         {isLocked && (
-                                            <div style={{ position: 'absolute', top: '5px', right: '5px', color: '#9CA3AF' }}>
+                                            <div style={{ position: 'absolute', top: '5px', right: '5px', color: '#9CA3AF', fontSize: '0.65rem' }}>
                                                 Kilitli
                                             </div>
                                         )}
@@ -270,97 +290,117 @@ const MonthlySelection = () => {
                         </div>
                     </Card>
 
-                    <Card title={isUpdateMode ? "Güncelleme Özeti" : "Ödeme Özeti"}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* ── Ödeme Özeti ───────────────────────────────────────────── */}
+                    <Card title="Ödeme Özeti">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
 
-                            {/* ── Bu ayın özeti ── */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem' }}>
-                                <span style={{ fontWeight: 600 }}>
-                                    {monthName(selectedMonth)} seçimi:
-                                </span>
-                                <strong>{selectedDays.length} gün</strong>
+                            {/* Toplam Tutar (büyük banner) */}
+                            <div style={{
+                                background: 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)',
+                                borderRadius: 12, padding: '1rem 1.25rem',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            }}>
+                                <div>
+                                    <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '0.15rem' }}>
+                                        TOPLAM TUTAR
+                                    </div>
+                                    <div style={{ color: 'white', fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
+                                        {grandTotal.toLocaleString('tr-TR')} TL
+                                    </div>
+                                    <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                                        {grandTotalDays} gün · {allMonthsBreakdown.length} ay
+                                    </div>
+                                </div>
+                                <CreditCard size={38} style={{ color: 'rgba(255,255,255,0.35)' }} />
                             </div>
 
+                            {/* Ay ay döküm (tıklanabilir) */}
+                            <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                                {allMonthsBreakdown.length === 0 ? (
+                                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                        Henüz gün seçilmedi.
+                                    </div>
+                                ) : allMonthsBreakdown.map(({ month, days: cnt, isPending, existing }, idx) => {
+                                    const isCur  = month === selectedMonth;
+                                    const isNew  = isPending && !existing;
+                                    const isEdit = isPending && !!existing;
+                                    return (
+                                        <div key={month}
+                                            onClick={() => setSelectedMonth(month)}
+                                            style={{
+                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                padding: '0.55rem 0.85rem', cursor: 'pointer',
+                                                background: isCur ? '#EEF2FF' : 'var(--surface)',
+                                                borderBottom: idx < allMonthsBreakdown.length - 1 ? '1px solid var(--border)' : 'none',
+                                                transition: 'background 0.15s',
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '0.88rem', color: isCur ? 'var(--primary)' : 'var(--text-main)', fontWeight: isCur ? 700 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                {isCur && <span style={{ fontSize: '0.65rem' }}>▶</span>}
+                                                {monthName(month)}
+                                                {isNew  && <span style={{ fontSize: '0.68rem', background: '#D1FAE5', color: '#065F46', padding: '0.1rem 0.35rem', borderRadius: 99, fontWeight: 700 }}>YENİ</span>}
+                                                {isEdit && <span style={{ fontSize: '0.68rem', background: '#FEF3C7', color: '#92400E', padding: '0.1rem 0.35rem', borderRadius: 99, fontWeight: 700 }}>DÜZENLE</span>}
+                                            </span>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: isCur ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                                {cnt}&nbsp;gün&nbsp;·&nbsp;{(cnt * 100).toLocaleString('tr-TR')}&nbsp;TL
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Tümünü Öde (yeni aylar için) */}
+                            {hasPendingNew && (
+                                <button
+                                    className="btn btn-primary"
+                                    style={{ width: '100%', padding: '0.95rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                    disabled={isPayingAll}
+                                    onClick={handlePayAllPending}
+                                >
+                                    <CreditCard size={18} />
+                                    {isPayingAll
+                                        ? 'İşleniyor...'
+                                        : `Tümünü Öde – ${pendingNewTotal.toLocaleString('tr-TR')} TL`
+                                    }
+                                </button>
+                            )}
+
+                            {/* Güncelle / iptal (mevcut rezervasyon) */}
                             {isUpdateMode && (
                                 <>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-muted)' }}>
-                                        <span>Önceki Tutar:</span>
-                                        <span>{oldTotalPrice} TL</span>
+                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.4rem' }}>
+                                            {monthName(selectedMonth).toUpperCase()} – GÜNCELLEME
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                                            <span>Önceki tutar:</span><span>{oldTotalPrice} TL</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.3rem', color: difference < 0 ? '#059669' : difference > 0 ? '#DC2626' : 'var(--text-muted)' }}>
+                                            <span>Fark:</span>
+                                            <span>{difference > 0 ? `+${difference}` : difference} TL</span>
+                                        </div>
+                                        {difference < 0 && <div style={{ fontSize: '0.75rem', color: '#059669' }}>* İade edilecek tutar</div>}
+                                        {difference > 0 && <div style={{ fontSize: '0.75rem', color: '#DC2626' }}>* Ek ödeme alınacaktır</div>}
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: difference < 0 ? '#10B981' : (difference > 0 ? '#EF4444' : 'var(--text-muted)') }}>
-                                        <span>Fark:</span>
-                                        <strong>{difference > 0 ? `+${difference} TL` : `${difference} TL`}</strong>
-                                    </div>
-                                    {difference < 0 && <small style={{ color: '#10B981' }}>* İade edilecek tutar</small>}
-                                    {difference > 0 && <small style={{ color: '#EF4444' }}>* Ek ödeme alınacaktır</small>}
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ width: '100%', padding: '0.75rem', fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                        disabled={isSaving}
+                                        onClick={handlePayment}
+                                    >
+                                        <CreditCard size={16} />
+                                        {isSaving ? 'İşleniyor...' : selectedDays.length === 0
+                                            ? `${monthName(selectedMonth)} – Tümünü İptal Et`
+                                            : `${monthName(selectedMonth)} – Güncelle`
+                                        }
+                                    </button>
                                 </>
                             )}
 
-                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', color: 'var(--primary)', fontWeight: 'bold' }}>
-                                <span>Bu Ay Toplam:</span>
-                                <span>{totalPrice} TL</span>
-                            </div>
-
-                            <button
-                                className="btn btn-primary"
-                                style={{ width: '100%', padding: '1rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                disabled={(!isUpdateMode && selectedDays.length === 0) || isSaving}
-                                onClick={handlePayment}
-                            >
-                                <CreditCard size={20} />
-                                {isSaving ? 'İşleniyor...' : isUpdateMode ? (selectedDays.length === 0 ? 'Tümünü İptal Et' : 'Güncelle') : (totalPrice > 0 ? `${totalPrice} TL Öde` : 'Seçim Yapın')}
-                            </button>
-
-                            {/* ── Genel Toplam (birden fazla ay seçilmişse) ── */}
-                            {allMonthsBreakdown.length > 0 && (
-                                <div style={{
-                                    marginTop: '0.25rem',
-                                    background: 'var(--background)',
-                                    borderRadius: 10,
-                                    padding: '1rem',
-                                    border: '1px solid var(--border)'
-                                }}>
-                                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.6rem' }}>
-                                        Tüm Aylara Genel Bakış
-                                    </div>
-                                    {allMonthsBreakdown.map(({ month, days: cnt, isPending, existing }) => {
-                                        const isCurrentMonth = month === selectedMonth;
-                                        const isNew = isPending && !existing;
-                                        return (
-                                            <div key={month}
-                                                onClick={() => setSelectedMonth(month)}
-                                                style={{
-                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                    padding: '0.4rem 0.5rem', borderRadius: 7, marginBottom: '0.25rem', cursor: 'pointer',
-                                                    background: isCurrentMonth ? '#EEF2FF' : 'transparent',
-                                                    fontWeight: isCurrentMonth ? 700 : 400,
-                                                    border: isCurrentMonth ? '1px solid #C7D2FE' : '1px solid transparent',
-                                                    transition: 'background 0.15s',
-                                                }}
-                                            >
-                                                <span style={{ fontSize: '0.88rem', color: isCurrentMonth ? 'var(--primary)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                                    {isCurrentMonth && <span style={{ fontSize: '0.7rem' }}>▶</span>}
-                                                    {monthName(month)}
-                                                    {isNew && <span style={{ fontSize: '0.7rem', color: '#10B981', fontWeight: 700 }}>YENİ</span>}
-                                                    {isPending && !isNew && <span style={{ fontSize: '0.7rem', color: '#F59E0B', fontWeight: 700 }}>DÜZENLENDI</span>}
-                                                </span>
-                                                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: isCurrentMonth ? 'var(--primary)' : 'var(--text-muted)' }}>
-                                                    {cnt} gün · {cnt * 100} TL
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                    <div style={{
-                                        borderTop: '2px solid var(--primary)', marginTop: '0.5rem', paddingTop: '0.6rem',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                    }}>
-                                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                                            Genel Toplam
-                                        </span>
-                                        <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--primary)' }}>
-                                            {grandTotalDays} gün · {grandTotal} TL
-                                        </span>
-                                    </div>
+                            {/* Hiç seçim yoksa ipucu */}
+                            {!hasPendingNew && !isUpdateMode && allMonthsBreakdown.length === 0 && (
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem', padding: '0.25rem 0' }}>
+                                    Takvimden gün seçin.
                                 </div>
                             )}
                         </div>
