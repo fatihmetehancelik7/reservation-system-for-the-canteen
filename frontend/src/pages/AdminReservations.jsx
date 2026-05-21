@@ -73,7 +73,9 @@ const AdminReservations = () => {
     ];
 
     const totalRevenue = reservations.reduce((sum, r) => sum + r.toplamTutar, 0);
-    const totalRefunded = refunds.reduce((sum, r) => sum + r.iadeEdilen, 0);
+    const holidayRefunds = refunds.filter(r => r.tatilAciklama !== 'Kullanıcı rezervasyon iptali');
+    const totalHolidayRefunded = holidayRefunds.reduce((sum, r) => sum + r.iadeEdilen, 0);
+    
     const selectedReservationRefunds = selectedReservation
         ? refunds.filter(refund => refund.user?.id === selectedReservation.user?.id)
         : [];
@@ -116,10 +118,10 @@ const AdminReservations = () => {
                         </div>
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Net Ciro</div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{totalRevenue - totalRefunded} TL</div>
-                            {totalRefunded > 0 && (
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{totalRevenue - totalHolidayRefunded} TL</div>
+                            {totalHolidayRefunded > 0 && (
                                 <div style={{ fontSize: '0.8rem', color: '#EF4444' }}>
-                                    ({totalRevenue} TL toplam - {totalRefunded} TL iade)
+                                    ({totalRevenue} TL rezervasyon - {totalHolidayRefunded} TL resmi tatil iadesi)
                                 </div>
                             )}
                         </div>
@@ -127,7 +129,7 @@ const AdminReservations = () => {
                 </Card>
             </div>
 
-            {refunds.length > 0 && (
+            {holidayRefunds.length > 0 && (
                 <div style={{
                     background: '#FEF3C7',
                     border: '1px solid #F59E0B',
@@ -141,8 +143,8 @@ const AdminReservations = () => {
                 }}>
                     <AlertTriangle size={20} />
                     <span>
-                        <strong>{refunds.length} iade işlemi</strong> gerçekleştirilmiştir.
-                        Toplam <strong>{totalRefunded} TL</strong> iade edilmiştir.
+                        <strong>{holidayRefunds.length} tatil iade işlemi</strong> gerçekleştirilmiştir.
+                        Toplam <strong>{totalHolidayRefunded} TL</strong> tatil iadesi yapılmıştır.
                     </span>
                 </div>
             )}
