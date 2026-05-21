@@ -62,21 +62,39 @@ const MyPayments = () => {
         { field: 'tatilAciklama', header: 'Neden' },
         {
             field: 'iadeEdilen',
-            header: 'İade Tutarı',
-            render: (row) => (
-                <span style={{ color: '#10B981', fontWeight: '700', fontSize: '1rem' }}>
-                    + {row.iadeEdilen} TL
-                </span>
-            )
+            header: 'Durum / Tutar',
+            render: (row) => {
+                if (row.tatilAciklama === 'Kullanıcı rezervasyon iptali') {
+                    return (
+                        <span style={{ color: '#6B7280', fontWeight: '600', fontSize: '0.9rem' }}>
+                            Net Ödemeden Düşüldü
+                        </span>
+                    );
+                }
+                return (
+                    <span style={{ color: '#10B981', fontWeight: '700', fontSize: '1rem' }}>
+                        + {row.iadeEdilen} TL
+                    </span>
+                );
+            }
         },
         {
             field: 'status',
-            header: 'Durum',
-            render: () => (
-                <span style={{ padding: '0.25rem 0.5rem', background: '#FEF3C7', color: '#92400E', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
-                    İADE EDİLDİ
-                </span>
-            )
+            header: 'İşlem',
+            render: (row) => {
+                if (row.tatilAciklama === 'Kullanıcı rezervasyon iptali') {
+                    return (
+                        <span style={{ padding: '0.25rem 0.5rem', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+                            İPTAL EDİLDİ
+                        </span>
+                    );
+                }
+                return (
+                    <span style={{ padding: '0.25rem 0.5rem', background: '#FEF3C7', color: '#92400E', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+                        İADE EDİLDİ
+                    </span>
+                );
+            }
         }
     ];
 
@@ -171,7 +189,7 @@ const MyPayments = () => {
                         <CreditCard size={18} /> Ödemelerim ({transactions.length})
                     </button>
                     <button style={tabStyle('refunds')} onClick={() => setActiveTab('refunds')}>
-                        <RefreshCcw size={18} /> İadelerim ({holidayRefunds.length})
+                        <RefreshCcw size={18} /> İptal ve İadeler ({refunds.length})
                         {holidayRefunds.length > 0 && (
                             <span style={{
                                 background: '#EF4444',
@@ -198,13 +216,13 @@ const MyPayments = () => {
                 ) : activeTab === 'payments' ? (
                     <Table columns={paymentColumns} data={transactions} />
                 ) : (
-                    holidayRefunds.length === 0 ? (
+                    refunds.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                             <RefreshCcw size={40} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-                            <p>Henüz iade bulunmamaktadır.</p>
+                            <p>Henüz iptal veya iade bulunmamaktadır.</p>
                         </div>
                     ) : (
-                        <Table columns={refundColumns} data={holidayRefunds} />
+                        <Table columns={refundColumns} data={refunds} />
                     )
                 )}
             </Card>
