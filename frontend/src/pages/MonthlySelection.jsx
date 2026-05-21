@@ -128,50 +128,7 @@ const MonthlySelection = () => {
         setSelectedMonth(Number(e.target.value));
     };
 
-    // Güncelleme / tek ay ödeme (var olan rezervasyon için)
-    const handlePayment = async () => {
-        if (selectedDays.length === 0 && !existingReservation) return;
-
-        setError('');
-        try {
-            if (existingReservation) {
-                const message = selectedDays.length === 0
-                    ? 'Bu aya ait tüm gelecek gün rezervasyonlarınızı iptal etmek istediğinize emin misiniz?'
-                    : 'Rezervasyonunuzu güncellemek istediğinize emin misiniz?';
-                if (!window.confirm(message)) return;
-                await updateReservationMutation.mutateAsync({
-                    id: existingReservation.id,
-                    data: {
-                        userId: user.id,
-                        yil: currentYear,
-                        ay: selectedMonth,
-                        secilenGunler: selectedDays
-                    },
-                });
-                alert('Rezervasyonunuz başarıyla güncellendi!');
-            } else {
-                if (!window.confirm(`Seçilen ${selectedDays.length} gün için toplam ${selectedDays.length * 100} TL ödeme yapılacaktır. Onaylıyor musunuz?`)) return;
-                await createReservationMutation.mutateAsync({
-                    userId: user.id,
-                    yil: currentYear,
-                    ay: selectedMonth,
-                    secilenGunler: selectedDays
-                });
-                alert('Ödeme başarıyla alındı ve rezervasyonlarınız oluşturuldu!');
-            }
-        } catch (err) {
-            setError(err.response?.data?.error || 'İşlem başarısız.');
-        }
-    };
-
-    const days = getDaysInMonth();
-    const isUpdateMode = !!existingReservation;
-    const oldTotalPrice = existingReservation ? existingReservation.toplamTutar : 0;
-    const totalPrice = selectedDays.length * 100;
-    const difference = totalPrice - oldTotalPrice;
-    const isSaving = createReservationMutation.isPending || updateReservationMutation.isPending;
-
-    // ── Tüm ayların özeti ──────────────────────────────────────────────────
+    // ── Tüm ayların özeti ve Global Sepet ───────────────────────────────────
     const monthName = (m) => new Date(2026, m - 1, 1).toLocaleDateString('tr-TR', { month: 'long' });
 
     const allMonthsBreakdown = Array.from({ length: 12 }, (_, i) => i + 1).reduce((acc, m) => {
@@ -179,73 +136,86 @@ const MonthlySelection = () => {
         const pendingDays = selectedDaysByMonth[m];
         let dayCnt = 0;
         let isPending = false;
+        let isChanged = false;
+        let oldDayCnt = 0;
+        let diffDays = 0;
+
+        if (existingForMonth) {
+            oldDayCnt = (existingForMonth.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
+        }
+
         if (pendingDays !== undefined) {
             dayCnt = pendingDays.filter(d => !holidays.includes(d)).length;
             isPending = true;
+            isChanged = dayCnt !== oldDayCnt;
+            diffDays = dayCnt - oldDayCnt;
         } else if (existingForMonth) {
-            dayCnt = (existingForMonth.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
+            dayCnt = oldDayCnt;
         }
-        if (dayCnt > 0) acc.push({ month: m, days: dayCnt, isPending, existing: existingForMonth, pendingDays: selectedDaysByMonth[m] });
+
+        if (dayCnt > 0 || isChanged) {
+            acc.push({ 
+                month: m, 
+                days: dayCnt, 
+                oldDays: oldDayCnt,
+                isPending, 
+                isChanged,
+                diffDays,
+                existing: existingForMonth, 
+                pendingDays: selectedDaysByMonth[m] 
+            });
+        }
         return acc;
     }, []);
 
-    const grandTotalDays = allMonthsBreakdown.reduce((s, x) => s + x.days, 0);
-    const grandTotal     = grandTotalDays * 100;
+    const hasChanges = allMonthsBreakdown.some(x => x.isChanged);
+    const globalDiffDays = allMonthsBreakdown.reduce((s, x) => s + (x.isChanged ? x.diffDays : 0), 0);
+    const globalDiffAmount = globalDiffDays * 100;
+    
+    let globalType = 'NO_DIFFERENCE';
+    if (globalDiffAmount > 0) globalType = 'PAYMENT_REQUIRED';
+    else if (globalDiffAmount < 0) globalType = 'REFUND_REQUIRED';
 
-    // ── Payment Difference Calculation ──────────────────────────────────────
-    let paymentDifference = null;
-    if (isUpdateMode) {
-        const oldDayCount = (existingReservation?.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
-        const newDayCount = selectedDays.length;
-        const netDayDifference = newDayCount - oldDayCount;
-        const differenceAmount = netDayDifference * 100;
+    const [isProcessing, setIsProcessing] = useState(false);
+    
+    const handleProcessChanges = async () => {
+        if (!hasChanges) return;
         
-        let type = 'NO_DIFFERENCE';
-        if (differenceAmount > 0) type = 'PAYMENT_REQUIRED';
-        else if (differenceAmount < 0) type = 'REFUND_REQUIRED';
+        const changedMonths = allMonthsBreakdown.filter(x => x.isChanged);
+        
+        let confirmMsg = 'Değişiklikleri kaydetmek istediğinize emin misiniz?';
+        if (globalType === 'PAYMENT_REQUIRED') {
+            confirmMsg = `Toplam ${globalDiffAmount} TL tutarında ek ödeme alınacaktır. Onaylıyor musunuz?`;
+        } else if (globalType === 'REFUND_REQUIRED') {
+            confirmMsg = `Toplam ${Math.abs(globalDiffAmount)} TL tutarında iade oluşturulacaktır. Onaylıyor musunuz?`;
+        }
 
-        paymentDifference = {
-            month: selectedMonth,
-            oldDayCount,
-            newDayCount,
-            netDayDifference,
-            oldAmount: oldDayCount * 100,
-            newAmount: newDayCount * 100,
-            differenceAmount,
-            type
-        };
-    }
+        if (!window.confirm(confirmMsg)) return;
 
-    // Yalnızca yeni (update olmayan) bekleyen günlerin hesabı
-    const pendingNewMonths = allMonthsBreakdown.filter(x => x.isPending && !x.existing);
-    const pendingNewTotal = pendingNewMonths.reduce((s, x) => s + x.days * 100, 0);
-    const pendingNewDays = pendingNewMonths.reduce((s, x) => s + x.days, 0);
-    const hasPendingNew = pendingNewMonths.length > 0;
-
-    // Tüm yeni ayları sırayla öde
-    const [isPayingAll, setIsPayingAll] = useState(false);
-    const handlePayAllPending = async () => {
-        if (!hasPendingNew) return;
-        const monthList = pendingNewMonths.map(x => monthName(x.month)).join(', ');
-        if (!window.confirm(`${monthList} ayları için toplam ${pendingNewTotal.toLocaleString('tr-TR')} TL ödeme yapılacaktır. Onaylıyor musunuz?`)) return;
         setError('');
-        setIsPayingAll(true);
+        setIsProcessing(true);
         try {
-            for (const item of pendingNewMonths) {
+            for (const item of changedMonths) {
                 const daysToSend = (item.pendingDays ?? []).filter(d => !holidays.includes(d));
-                await createReservationMutation.mutateAsync({
-                    userId: user.id,
-                    yil: currentYear,
-                    ay: item.month,
-                    secilenGunler: daysToSend,
-                });
+                if (item.existing) {
+                    await updateReservationMutation.mutateAsync({
+                        id: item.existing.id,
+                        data: { userId: user.id, yil: currentYear, ay: item.month, secilenGunler: daysToSend }
+                    });
+                } else {
+                    if (daysToSend.length > 0) {
+                        await createReservationMutation.mutateAsync({
+                            userId: user.id, yil: currentYear, ay: item.month, secilenGunler: daysToSend
+                        });
+                    }
+                }
             }
             setSelectedDaysByMonth({});
-            alert(`${pendingNewMonths.length} ay için toplam ${pendingNewTotal.toLocaleString('tr-TR')} TL ödeme alındı ve rezervasyonlar oluşturuldu!`);
+            alert('İşlemleriniz başarıyla tamamlandı!');
         } catch (err) {
-            setError(err.response?.data?.error || 'Ödeme işlemi sırasında hata oluştu.');
+            setError(err.response?.data?.error || 'İşlem sırasında hata oluştu.');
         } finally {
-            setIsPayingAll(false);
+            setIsProcessing(false);
         }
     };
 
@@ -282,7 +252,7 @@ const MonthlySelection = () => {
                     {/* ── Takvim ────────────────────────────────────────────────── */}
                     <Card title="Gün Seçimi (Sadece Hafta İçi)">
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
-                            {days.map(day => {
+                            {getDaysInMonth().map(day => {
                                 const isSelected = selectedDays.includes(day.dateStr);
                                 const isClickable = !day.isHoliday && day.menu;
                                 const todayStr = timeQuery.data;
@@ -339,53 +309,49 @@ const MonthlySelection = () => {
                     </Card>
 
                     {/* ── Ödeme Özeti ───────────────────────────────────────────── */}
-                    <Card title="Ödeme Özeti">
+                    <Card title="Genel Sepet Özeti">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
 
                             {/* Banner Gösterimi */}
                             <div style={{
-                                background: isUpdateMode 
-                                    ? (paymentDifference.type === 'REFUND_REQUIRED' ? 'linear-gradient(135deg, #059669 0%, #10B981 100%)'
-                                       : paymentDifference.type === 'PAYMENT_REQUIRED' ? 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)'
+                                background: hasChanges 
+                                    ? (globalType === 'REFUND_REQUIRED' ? 'linear-gradient(135deg, #059669 0%, #10B981 100%)'
+                                       : globalType === 'PAYMENT_REQUIRED' ? 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)'
                                        : 'linear-gradient(135deg, var(--surface) 0%, #F3F4F6 100%)')
-                                    : (!hasPendingNew ? 'linear-gradient(135deg, var(--surface) 0%, #F3F4F6 100%)' : 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)'),
+                                    : 'linear-gradient(135deg, var(--surface) 0%, #F3F4F6 100%)',
                                 borderRadius: 12, padding: '1rem 1.25rem',
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                border: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? '1px solid var(--border)' : 'none'
+                                border: (!hasChanges || globalType === 'NO_DIFFERENCE') ? '1px solid var(--border)' : 'none'
                             }}>
                                 <div>
                                     <div style={{ 
-                                        color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? 'var(--text-muted)' : 'rgba(255,255,255,0.9)', 
+                                        color: (!hasChanges || globalType === 'NO_DIFFERENCE') ? 'var(--text-muted)' : 'rgba(255,255,255,0.9)', 
                                         fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '0.15rem' 
                                     }}>
-                                        {isUpdateMode 
-                                            ? (paymentDifference.type === 'REFUND_REQUIRED' ? 'İADE EDİLECEK TUTAR' 
-                                               : paymentDifference.type === 'PAYMENT_REQUIRED' ? 'ÖDENECEK FARK TUTARI' 
+                                        {hasChanges 
+                                            ? (globalType === 'REFUND_REQUIRED' ? 'TOPLAM İADE EDİLECEK TUTAR' 
+                                               : globalType === 'PAYMENT_REQUIRED' ? 'TOPLAM ÖDENECEK FARK' 
                                                : 'ÖDEME VEYA İADE FARKI YOK')
-                                            : (!hasPendingNew ? 'GÜNCEL TOPLAM TUTAR' : 'ÖDENECEK TOPLAM TUTAR')
+                                            : 'BEKLEYEN DEĞİŞİKLİK YOK'
                                         }
                                     </div>
                                     <div style={{ 
-                                        color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? 'var(--text-main)' : 'white', 
+                                        color: (!hasChanges || globalType === 'NO_DIFFERENCE') ? 'var(--text-main)' : 'white', 
                                         fontSize: '2rem', fontWeight: 800, lineHeight: 1 
                                     }}>
-                                        {isUpdateMode 
-                                            ? Math.abs(paymentDifference.differenceAmount).toLocaleString('tr-TR')
-                                            : (!hasPendingNew ? grandTotal.toLocaleString('tr-TR') : pendingNewTotal.toLocaleString('tr-TR'))
-                                        } TL
+                                        {hasChanges ? Math.abs(globalDiffAmount).toLocaleString('tr-TR') : '0'} TL
                                     </div>
                                     <div style={{ 
-                                        color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? 'var(--text-muted)' : 'rgba(255,255,255,0.8)', 
+                                        color: (!hasChanges || globalType === 'NO_DIFFERENCE') ? 'var(--text-muted)' : 'rgba(255,255,255,0.8)', 
                                         fontSize: '0.8rem', marginTop: '0.25rem' 
                                     }}>
-                                        {isUpdateMode 
-                                            ? (paymentDifference.type === 'NO_DIFFERENCE' ? 'Gün farkı yok' 
-                                               : `${paymentDifference.type === 'REFUND_REQUIRED' ? '-' : '+'}${Math.abs(paymentDifference.netDayDifference)} gün`)
-                                            : (!hasPendingNew ? `${grandTotalDays} gün · ${allMonthsBreakdown.length} ay` : `+${pendingNewDays} gün eklendi`)
+                                        {hasChanges && globalType !== 'NO_DIFFERENCE'
+                                            ? `${globalDiffDays > 0 ? '+' : ''}${globalDiffDays} gün net fark`
+                                            : 'Değişiklik yapılmadı'
                                         }
                                     </div>
                                 </div>
-                                <CreditCard size={38} style={{ color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? '#D1D5DB' : 'rgba(255,255,255,0.35)' }} />
+                                <CreditCard size={38} style={{ color: (!hasChanges || globalType === 'NO_DIFFERENCE') ? '#D1D5DB' : 'rgba(255,255,255,0.35)' }} />
                             </div>
 
                             {/* Ay ay döküm listesi */}
@@ -394,34 +360,36 @@ const MonthlySelection = () => {
                                     <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                                         Henüz gün seçilmedi.
                                     </div>
-                                ) : allMonthsBreakdown.map(({ month, days: cnt, isPending, existing }, idx) => {
+                                ) : allMonthsBreakdown.map(({ month, days: cnt, oldDays, isChanged, diffDays, existing }, idx) => {
                                     const isCur  = month === selectedMonth;
-                                    const isNew  = isPending && !existing;
-                                    const isEdit = isPending && !!existing;
-                                    const isDisabled = isUpdateMode && !isCur; // Güncelleme modunda diğer aylar devre dışı
+                                    const isNew  = isChanged && !existing;
+                                    const isEdit = isChanged && !!existing;
 
                                     return (
                                         <div key={month}
-                                            onClick={() => {
-                                                if (isEdit && !isUpdateMode) setSelectedMonth(month);
-                                            }}
+                                            onClick={() => setSelectedMonth(month)}
                                             style={{
                                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                                 padding: '0.55rem 0.85rem', 
-                                                cursor: (isEdit && !isUpdateMode) ? 'pointer' : 'default',
+                                                cursor: 'pointer',
                                                 background: isCur ? '#EEF2FF' : 'var(--surface)',
                                                 borderBottom: idx < allMonthsBreakdown.length - 1 ? '1px solid var(--border)' : 'none',
-                                                opacity: isDisabled ? 0.4 : 1,
-                                                pointerEvents: isDisabled ? 'none' : 'auto',
-                                                transition: 'background 0.15s, opacity 0.15s',
+                                                transition: 'background 0.15s',
                                             }}
                                         >
-                                            <span style={{ fontSize: '0.88rem', color: isCur ? 'var(--primary)' : 'var(--text-main)', fontWeight: isCur ? 700 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                {isCur && <span style={{ fontSize: '0.65rem' }}>▶</span>}
-                                                {monthName(month)}
-                                                {isNew  && <span style={{ fontSize: '0.68rem', background: '#D1FAE5', color: '#065F46', padding: '0.1rem 0.35rem', borderRadius: 99, fontWeight: 700 }}>YENİ</span>}
-                                                {isEdit && <span style={{ fontSize: '0.68rem', background: '#FEF3C7', color: '#92400E', padding: '0.1rem 0.35rem', borderRadius: 99, fontWeight: 700 }}>DÜZENLE</span>}
-                                            </span>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontSize: '0.88rem', color: isCur ? 'var(--primary)' : 'var(--text-main)', fontWeight: isCur ? 700 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                    {isCur && <span style={{ fontSize: '0.65rem' }}>▶</span>}
+                                                    {monthName(month)}
+                                                    {isNew  && <span style={{ fontSize: '0.68rem', background: '#D1FAE5', color: '#065F46', padding: '0.1rem 0.35rem', borderRadius: 99, fontWeight: 700 }}>YENİ</span>}
+                                                    {isEdit && <span style={{ fontSize: '0.68rem', background: '#FEF3C7', color: '#92400E', padding: '0.1rem 0.35rem', borderRadius: 99, fontWeight: 700 }}>DÜZENLE</span>}
+                                                </span>
+                                                {isEdit && diffDays !== 0 && (
+                                                    <span style={{ fontSize: '0.75rem', color: diffDays > 0 ? '#DC2626' : '#059669', marginTop: '0.15rem' }}>
+                                                        {oldDays} gün → {cnt} gün ({diffDays > 0 ? '+' : ''}{diffDays})
+                                                    </span>
+                                                )}
+                                            </div>
                                             <span style={{ fontSize: '0.9rem', fontWeight: 700, color: isCur ? 'var(--primary)' : 'var(--text-muted)' }}>
                                                 {cnt}&nbsp;gün&nbsp;·&nbsp;{(cnt * 100).toLocaleString('tr-TR')}&nbsp;TL
                                             </span>
@@ -430,77 +398,53 @@ const MonthlySelection = () => {
                                 })}
                             </div>
 
-                            {/* Tümünü Öde (Yalnızca Yeni Rezervasyonlar Modu) */}
-                            {!isUpdateMode && hasPendingNew && (
+                            {/* Seçilen Ayın Detayları */}
+                            {(() => {
+                                const activeItem = allMonthsBreakdown.find(x => x.month === selectedMonth);
+                                if (!activeItem || !activeItem.isChanged || !activeItem.existing) return null;
+                                
+                                return (
+                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.4rem' }}>
+                                            {monthName(selectedMonth).toUpperCase()} – DEĞİŞİKLİK ÖZETİ
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                                            <span>Önceki tutar:</span><span>{(activeItem.oldDays * 100).toLocaleString('tr-TR')} TL</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                                            <span>Yeni tutar:</span><span>{(activeItem.days * 100).toLocaleString('tr-TR')} TL</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.3rem', color: activeItem.diffDays < 0 ? '#059669' : activeItem.diffDays > 0 ? '#DC2626' : 'var(--text-muted)' }}>
+                                            <span>Ay Bazlı Fark:</span>
+                                            <span>{activeItem.diffDays > 0 ? '+' : ''}{activeItem.diffDays * 100} TL</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Global Onay Butonu */}
+                            {hasChanges && (
                                 <button
                                     className="btn btn-primary"
-                                    style={{ width: '100%', padding: '0.95rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                    disabled={isPayingAll}
-                                    onClick={handlePayAllPending}
+                                    style={{ 
+                                        width: '100%', padding: '0.95rem', fontSize: '1.05rem', 
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                        background: globalType === 'REFUND_REQUIRED' ? '#059669' : 'var(--primary)',
+                                        border: 'none', color: 'white', marginTop: '0.5rem'
+                                    }}
+                                    disabled={isProcessing}
+                                    onClick={handleProcessChanges}
                                 >
-                                    <CreditCard size={18} />
-                                    {isPayingAll
+                                    {globalType === 'REFUND_REQUIRED' ? <Check size={18} /> : <CreditCard size={18} />}
+                                    {isProcessing
                                         ? 'İşleniyor...'
-                                        : `Tümünü Öde – ${pendingNewTotal.toLocaleString('tr-TR')} TL`
+                                        : globalType === 'NO_DIFFERENCE' ? 'Değişiklikleri Kaydet'
+                                        : globalType === 'REFUND_REQUIRED' ? `Onayla (Toplam ${Math.abs(globalDiffAmount)} TL İade)`
+                                        : `Sepeti Onayla – Toplam ${globalDiffAmount} TL Öde`
                                     }
                                 </button>
                             )}
 
-                            {/* Güncelle / İptal (Mevcut Rezervasyon Modu) */}
-                            {isUpdateMode && (
-                                <>
-                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.4rem' }}>
-                                            {monthName(selectedMonth).toUpperCase()} – GÜNCELLEME
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
-                                            <span>Önceki tutar:</span><span>{paymentDifference.oldAmount.toLocaleString('tr-TR')} TL</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
-                                            <span>Yeni tutar:</span><span>{paymentDifference.newAmount.toLocaleString('tr-TR')} TL</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.3rem', color: paymentDifference.type === 'REFUND_REQUIRED' ? '#059669' : paymentDifference.type === 'PAYMENT_REQUIRED' ? '#DC2626' : 'var(--text-muted)' }}>
-                                            <span>Net Fark:</span>
-                                            <span>{paymentDifference.differenceAmount > 0 ? `+${paymentDifference.differenceAmount}` : paymentDifference.differenceAmount} TL</span>
-                                        </div>
-                                        {paymentDifference.type === 'REFUND_REQUIRED' && <div style={{ fontSize: '0.75rem', color: '#059669' }}>* İade edilecek tutar hesabınıza yansıtılacaktır.</div>}
-                                        {paymentDifference.type === 'PAYMENT_REQUIRED' && <div style={{ fontSize: '0.75rem', color: '#DC2626' }}>* Güncelleme için ek ödeme alınacaktır.</div>}
-                                    </div>
-                                    
-                                    {paymentDifference.type !== 'REFUND_REQUIRED' ? (
-                                        <button
-                                            className="btn btn-secondary"
-                                            style={{ width: '100%', padding: '0.75rem', fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                            disabled={isSaving}
-                                            onClick={handlePayment}
-                                        >
-                                            <CreditCard size={16} />
-                                            {isSaving ? 'İşleniyor...' 
-                                                : paymentDifference.type === 'NO_DIFFERENCE' ? 'Güncellemeyi Kaydet'
-                                                : selectedDays.length === 0 ? `${monthName(selectedMonth)} – Tümünü İptal Et`
-                                                : `Farkı Öde – ${paymentDifference.differenceAmount} TL`
-                                            }
-                                        </button>
-                                    ) : (
-                                        <button
-                                            className="btn btn-secondary"
-                                            style={{ width: '100%', padding: '0.75rem', fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#059669', color: 'white', border: 'none' }}
-                                            disabled={isSaving}
-                                            onClick={handlePayment}
-                                        >
-                                            <Check size={16} />
-                                            {isSaving ? 'İşleniyor...' : 'Güncellemeyi Kaydet (İade Oluşturulacak)'}
-                                        </button>
-                                    )}
-                                </>
-                            )}
-
-                            {/* Hiç seçim yoksa ipucu */}
-                            {!hasPendingNew && !isUpdateMode && allMonthsBreakdown.length === 0 && (
-                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem', padding: '0.25rem 0' }}>
-                                    Takvimden gün seçin.
-                                </div>
-                            )}
                         </div>
                     </Card>
                 </div>
