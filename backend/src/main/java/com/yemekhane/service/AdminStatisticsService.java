@@ -181,15 +181,15 @@ public class AdminStatisticsService {
         var allRefunds = refundRecordRepository.findAll();
         long total     = allRefunds.size();
         long holiday   = allRefunds.stream()
-                .filter(r -> r.getTatilTarihi() != null)
+                .filter(r -> r.getTatilTarihi() != null && !"Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
                 .count();
         double amount  = allRefunds.stream()
                 .mapToDouble(r -> Optional.ofNullable(r.getIadeEdilen()).orElse(0.0))
                 .sum();
 
-        // Days with most refunds
+        // Days with most refunds (Holidays)
         Map<LocalDate, Long> refundsByDay = allRefunds.stream()
-                .filter(r -> r.getTatilTarihi() != null)
+                .filter(r -> r.getTatilTarihi() != null && !"Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
                 .collect(Collectors.groupingBy(
                         com.yemekhane.entity.RefundRecord::getTatilTarihi,
                         Collectors.counting()
@@ -213,5 +213,31 @@ public class AdminStatisticsService {
                 .totalRefundAmount(amount)
                 .mostRefundedDays(topRefundDays)
                 .build();
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. Most cancelled days (excluding holidays)
+    // -------------------------------------------------------------------------
+    public List<MostReservedDayDto> getMostCancelledDays(int limit) {
+        var allRefunds = refundRecordRepository.findAll();
+
+        Map<LocalDate, Long> cancelsByDay = allRefunds.stream()
+                .filter(r -> r.getTatilTarihi() != null && "Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
+                .collect(Collectors.groupingBy(
+                        com.yemekhane.entity.RefundRecord::getTatilTarihi,
+                        Collectors.counting()
+                ));
+
+        return cancelsByDay.entrySet().stream()
+                .sorted(Map.Entry.<LocalDate, Long>comparingByValue().reversed())
+                .limit(limit)
+                .map(e -> MostReservedDayDto.builder()
+                        .reservationDate(e.getKey())
+                        .dayOfWeek(e.getKey().getDayOfWeek()
+                                .getDisplayName(TextStyle.FULL, new Locale("tr")))
+                        .reservationCount(e.getValue())
+                        .estimatedRevenue(e.getValue() * DAILY_MEAL_PRICE)
+                        .build())
+                .collect(Collectors.toList());
     }
 }

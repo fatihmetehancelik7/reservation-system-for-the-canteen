@@ -6,8 +6,13 @@ export const getAdminStatisticsOverview = async () => {
 };
 
 export const getMostReservedDays = async (limit = 10) => {
-    const response = await api.get(`/admin/statistics/most-reserved-days?limit=${limit}`);
-    return response.data;
+    const res = await api.get(`/admin/statistics/most-reserved-days?limit=${limit}`);
+    return res.data;
+};
+
+export const getMostCancelledDays = async (limit = 10) => {
+    const res = await api.get(`/admin/statistics/most-cancelled-days?limit=${limit}`);
+    return res.data;
 };
 
 export const getFavoriteMenus = async (limit = 10) => {

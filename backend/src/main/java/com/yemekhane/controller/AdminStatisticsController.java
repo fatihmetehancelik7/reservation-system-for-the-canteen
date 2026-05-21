@@ -31,6 +31,12 @@ public class AdminStatisticsController {
         return ResponseEntity.ok(statisticsService.getMostReservedDays(limit));
     }
 
+    @GetMapping("/most-cancelled-days")
+    public ResponseEntity<List<MostReservedDayDto>> getMostCancelledDays(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(statisticsService.getMostCancelledDays(limit));
+    }
+
     @GetMapping("/favorite-menus")
     public ResponseEntity<List<FavoriteMenuDto>> getFavoriteMenus(
             @RequestParam(defaultValue = "10") int limit) {
