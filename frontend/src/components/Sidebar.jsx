@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, CalendarDays, Wallet, CalendarClock, Utensils, Users, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Wallet, CalendarClock, Utensils, Users, BarChart2, UserCog } from 'lucide-react';
 
 const Sidebar = () => {
     const { user } = useAuth();
@@ -62,6 +62,12 @@ const Sidebar = () => {
                             <NavLink to="/admin/statistics" className={({isActive}) => isActive ? 'nav-item active' : 'nav-item'}>
                                 <BarChart2 size={20} />
                                 <span>İstatistikler</span>
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink to="/admin/users" className={({isActive}) => isActive ? 'nav-item active' : 'nav-item'}>
+                                <UserCog size={20} />
+                                <span>Kullanıcı Yönetimi</span>
                             </NavLink>
                         </li>
                     </>

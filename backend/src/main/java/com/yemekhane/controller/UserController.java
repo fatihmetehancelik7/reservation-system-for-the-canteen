@@ -25,4 +25,9 @@ public class UserController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(userService.login(request));
     }
+
+    @PostMapping
+    public ResponseEntity<UserDto> createUser(@RequestBody UserDto request) {
+        return ResponseEntity.ok(userService.createUser(request));
+    }
 }

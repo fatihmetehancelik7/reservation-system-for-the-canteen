@@ -189,7 +189,7 @@ const MonthlySelection = () => {
                                 const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
                                 const todayStr = localNow.toISOString().split('T')[0];
                                 const isPastOrToday = day.dateStr <= todayStr;
-                                const isLocked = isUpdateMode && isPastOrToday;
+                                const isLocked = isPastOrToday;
 
                                 let bg = '#F9FAFB';
                                 let border = '1px solid #E5E7EB';

@@ -12,9 +12,11 @@ import AdminHolidays from './pages/AdminHolidays';
 import AdminMenu from './pages/AdminMenu';
 import AdminReservations from './pages/AdminReservations';
 import AdminStatistics from './pages/AdminStatistics';
+import AdminUsers from './pages/AdminUsers';
 import { getMenusByMonth } from './services/menuService';
 import { getAllHolidays, getAllRefunds, getUserRefunds } from './services/holidayService';
 import { getAllReservations, getUserReservations } from './services/reservationService';
+import { getAllUsers } from './services/userService';
 
 const currentYear = 2026;
 const currentMonth = new Date().getMonth() + 1;
@@ -115,6 +117,13 @@ const router = createBrowserRouter([
                 path: 'admin/statistics',
                 loader: protectedLoader(['ADMIN']),
                 element: <AdminStatistics />,
+              },
+              {
+                path: 'admin/users',
+                loader: protectedLoader(['ADMIN'], () =>
+                  queryClient.ensureQueryData({ queryKey: ['users'], queryFn: getAllUsers })
+                ),
+                element: <AdminUsers />,
               },
             ],
           },

@@ -10,6 +10,7 @@ public class UserDto {
     private String ad;
     private String soyad;
     private String email;
+    private String sifre;   // only used on create, never returned
     private Role rol;
 
     public static UserDto fromEntity(User user) {
