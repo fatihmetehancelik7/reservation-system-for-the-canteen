@@ -6,6 +6,7 @@ import {
 import {
     getAdminStatisticsOverview,
     getMostReservedDays,
+    getMostCancelledDays,
     getFavoriteMenus,
     getMonthlyReservationStatistics,
     getPaymentSummary,
@@ -166,6 +167,7 @@ const DonutChart = ({ segments, size = 140 }) => {
 const AdminStatistics = () => {
     const [overview, setOverview]         = useState(null);
     const [topDays, setTopDays]           = useState([]);
+    const [topCancelledDays, setTopCancelledDays] = useState([]);
     const [menus, setMenus]               = useState([]);
     const [monthly, setMonthly]           = useState([]);
     const [payment, setPayment]           = useState(null);
@@ -178,9 +180,10 @@ const AdminStatistics = () => {
             setLoading(true);
             setError('');
             try {
-                const [ov, days, mn, mo, pay, ref] = await Promise.all([
+                const [ov, days, cancelledDays, mn, mo, pay, ref] = await Promise.all([
                     getAdminStatisticsOverview(),
                     getMostReservedDays(10),
+                    getMostCancelledDays(10),
                     getFavoriteMenus(10),
                     getMonthlyReservationStatistics(),
                     getPaymentSummary(),
@@ -188,6 +191,7 @@ const AdminStatistics = () => {
                 ]);
                 setOverview(ov);
                 setTopDays(days);
+                setTopCancelledDays(cancelledDays);
                 setMenus(mn);
                 setMonthly(mo);
                 setPayment(pay);
@@ -237,7 +241,7 @@ const AdminStatistics = () => {
                         <StatCard icon={CalendarOff}   label="Tatil Günü"           value={fmt(overview?.holidayCount)}          color="#9CA3AF" bg="#F3F4F6" />
                     </div>
 
-                    {/* ── Row: Most Reserved Days + Payment Donut ──────────────── */}
+                    {/* ── Row: Most Reserved & Cancelled Days ──────────────── */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                         <Card>
                             <SectionTitle icon={BarChart2}>En Çok Rezerve Edilen Günler</SectionTitle>
@@ -269,6 +273,42 @@ const AdminStatistics = () => {
                                 </div>
                             )}
                         </Card>
+
+                        <Card>
+                            <SectionTitle icon={BarChart2}>En Çok İptal Edilen Günler</SectionTitle>
+                            {topCancelledDays.length === 0
+                                ? <EmptyState message="Henüz iptal edilen rezervasyon bulunmuyor." />
+                                : <BarChartSvg data={topCancelledDays} valueKey="reservationCount" labelKey="reservationDate" color="#EF4444" />
+                            }
+                            {topCancelledDays.length > 0 && (
+                                <div style={{ marginTop: '1rem', overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                                                {['Tarih', 'Gün', 'İptal Sayısı', 'İade Tutarı'].map(h => (
+                                                    <th key={h} style={{ textAlign: 'left', padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {topCancelledDays.map((d, i) => (
+                                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                    <td style={{ padding: '0.4rem 0.6rem' }}>{new Date(d.reservationDate).toLocaleDateString('tr-TR')}</td>
+                                                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{d.dayOfWeek}</td>
+                                                    <td style={{ padding: '0.4rem 0.6rem', fontWeight: 700, color: '#EF4444' }}>{d.reservationCount}</td>
+                                                    <td style={{ padding: '0.4rem 0.6rem', color: '#EF4444', fontWeight: 600 }}>{fmtTL(d.estimatedRevenue)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+
+                    {/* ── Row: Payment Donut + Refunds ──────────────── */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             {/* Payment donut */}
