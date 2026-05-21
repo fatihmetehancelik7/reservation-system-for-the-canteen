@@ -17,6 +17,13 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.yemekhane.security.JwtUtils;
+import com.yemekhane.security.UserDetailsImpl;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -25,6 +32,9 @@ public class UserService {
     private final ReservationDayRepository reservationDayRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final RefundRecordRepository refundRecordRepository;
+    private final AuthenticationManager authenticationManager;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtils jwtUtils;
 
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream()
@@ -33,14 +43,13 @@ public class UserService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BusinessException("Email veya şifre hatalı"));
-        
-        if (!user.getSifre().equals(request.getSifre())) {
-            throw new BusinessException("Email veya şifre hatalı");
-        }
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getSifre()));
 
-        return new AuthResponse("dummy-jwt-token-" + user.getId(), user.getId(), user.getAd(), user.getSoyad(), user.getEmail(), user.getRol());
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        String jwt = jwtUtils.generateJwtToken(authentication);
+
+        return new AuthResponse(jwt, userDetails.getId(), userDetails.getAd(), userDetails.getSoyad(), userDetails.getUsername(), userDetails.getRoleEnum());
     }
 
     public UserDto createUser(UserDto request) {
@@ -51,7 +60,7 @@ public class UserService {
         u.setAd(request.getAd());
         u.setSoyad(request.getSoyad());
         u.setEmail(request.getEmail());
-        u.setSifre(request.getSifre() != null ? request.getSifre() : "123456");
+        u.setSifre(passwordEncoder.encode(request.getSifre() != null ? request.getSifre() : "123456"));
         u.setRol(request.getRol() != null ? request.getRol() : Role.KULLANICI);
         return UserDto.fromEntity(userRepository.save(u));
     }
@@ -76,7 +85,7 @@ public class UserService {
 
         if (dto.getAd() != null) user.setAd(dto.getAd());
         if (dto.getSoyad() != null) user.setSoyad(dto.getSoyad());
-        if (dto.getSifre() != null) user.setSifre(dto.getSifre());
+        if (dto.getSifre() != null && !dto.getSifre().isEmpty()) user.setSifre(passwordEncoder.encode(dto.getSifre()));
         if (dto.getRol() != null) user.setRol(dto.getRol());
 
         return UserDto.fromEntity(userRepository.save(user));

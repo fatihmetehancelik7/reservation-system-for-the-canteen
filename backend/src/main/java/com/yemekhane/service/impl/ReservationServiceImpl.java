@@ -20,11 +20,12 @@ import com.yemekhane.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -34,8 +35,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReservationServiceImpl implements ReservationService {
 
-    private static final int ACTIVE_YEAR = 2026;
-    private static final double DAILY_PRICE = 100.0;
+    @Value("${app.constants.daily-price:100.0}")
+    private double dailyPrice;
+
+    @Value("${app.constants.active-year:2026}")
+    private int activeYear;
+
+    @Value("${app.constants.timezone:Europe/Istanbul}")
+    private String timezone;
 
     private final MonthlyReservationRepository reservationRepository;
     private final MonthlyMenuRepository menuRepository;
@@ -139,7 +146,7 @@ public class ReservationServiceImpl implements ReservationService {
             transaction.setAy(request.getAy());
             transaction.setIslemTarihi(savedReservation.getIslemTarihi());
             transaction.setIslemGunSayisi(diffDays);
-            transaction.setIslemTutari(diffDays * DAILY_PRICE);
+            transaction.setIslemTutari(Math.abs(diffDays * dailyPrice));
             transaction.setIslemTipi(diffDays > 0 ? "EK ÖDEME" : "İPTAL");
             transactionRepository.save(transaction);
         }
@@ -151,9 +158,9 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setYil(request.getYil());
         reservation.setAy(request.getAy());
         reservation.setSecilenGunSayisi(request.getSecilenGunler().size());
-        reservation.setToplamTutar(request.getSecilenGunler().size() * DAILY_PRICE);
+        reservation.setToplamTutar(request.getSecilenGunler().size() * dailyPrice);
         reservation.setOdemeDurumu(PaymentStatus.ODENDI);
-        reservation.setIslemTarihi(LocalDateTime.now(ZoneId.of("Europe/Istanbul")));
+        reservation.setIslemTarihi(LocalDateTime.now(ZoneId.of(timezone)));
     }
 
     private List<ReservationDay> buildReservationDays(ReservationRequest request, MonthlyReservation reservation, User user) {
@@ -169,8 +176,8 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     private void validateReservationRequest(ReservationRequest request, MonthlyReservation existingReservation) {
-        if (request.getYil() != ACTIVE_YEAR) {
-            throw new BusinessException("Sistem yalnızca 2026 yılı için çalışmaktadır.");
+        if (request.getYil() != activeYear) {
+            throw new BusinessException("Sistem yalnızca " + activeYear + " yılı için çalışmaktadır.");
         }
 
         Set<LocalDate> uniqueDates = new HashSet<>(request.getSecilenGunler());
@@ -184,7 +191,7 @@ public class ReservationServiceImpl implements ReservationService {
             throw new BusinessException("Aynı gün birden fazla seçilemez.");
         }
 
-        LocalDate today = LocalDate.now(ZoneId.of("Europe/Istanbul"));
+        LocalDate today = LocalDate.now(ZoneId.of(timezone));
         for (LocalDate date : uniqueDates) {
             if (date == null) {
                 throw new BusinessException("Seçilen günler boş olamaz.");
@@ -230,7 +237,7 @@ public class ReservationServiceImpl implements ReservationService {
         List<LocalDate> cancelledDates = reservation.getReservationDays().stream()
                 .map(ReservationDay::getTarih)
                 .filter(date -> !requestedDates.contains(date))
-                .filter(date -> date.isAfter(LocalDate.now(ZoneId.of("Europe/Istanbul"))))
+                .filter(date -> date.isAfter(LocalDate.now(ZoneId.of(timezone))))
                 .collect(Collectors.toList());
 
         for (LocalDate date : cancelledDates) {
@@ -242,7 +249,7 @@ public class ReservationServiceImpl implements ReservationService {
             refund.setUser(reservation.getUser());
             refund.setTatilTarihi(date);
             refund.setTatilAciklama("Kullanıcı rezervasyon iptali");
-            refund.setIadeEdilen(0.0);
+            refund.setIadeEdilen(dailyPrice);
             refundRecordRepository.save(refund);
         }
     }

@@ -21,3 +21,14 @@ spring:
       path: /h2-console
       settings:
         web-allow-others: true
+
+app:
+  constants:
+    active-year: 2026
+    daily-price: 100.0
+    timezone: Europe/Istanbul
+  cors:
+    allowed-origins: "http://localhost:5173,http://127.0.0.1:5173"
+  security:
+    jwt-secret: "a-very-long-and-secure-random-secret-key-for-jwt-signing"
+    jwt-expiration-ms: 86400000

@@ -9,12 +9,15 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final HolidayRepository holidayRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) throws Exception {
@@ -31,6 +34,19 @@ public class DataInitializer implements CommandLineRunner {
                 user("Zeynep",  "Çelik",   "zeynep@yemekhane.com",      Role.KULLANICI),
                 user("Mustafa", "Öztürk",  "mustafa@yemekhane.com",     Role.KULLANICI)
             ));
+        } else {
+            // Migration script for existing users to hash plain-text passwords
+            List<User> existingUsers = userRepository.findAll();
+            boolean updated = false;
+            for (User user : existingUsers) {
+                if (!user.getSifre().startsWith("$2a$")) { // BCrypt prefix
+                    user.setSifre(passwordEncoder.encode(user.getSifre()));
+                    updated = true;
+                }
+            }
+            if (updated) {
+                userRepository.saveAll(existingUsers);
+            }
         }
 
         // ── 2026 Resmi Tatilleri ───────────────────────────────────────────────
@@ -61,7 +77,7 @@ public class DataInitializer implements CommandLineRunner {
         u.setAd(ad);
         u.setSoyad(soyad);
         u.setEmail(email);
-        u.setSifre("123456");
+        u.setSifre(passwordEncoder.encode("123456"));
         u.setRol(rol);
         return u;
     }

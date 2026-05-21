@@ -14,12 +14,17 @@ import java.time.format.TextStyle;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 @RequiredArgsConstructor
 public class AdminStatisticsService {
 
-    // Per-day meal price constant – single source of truth
-    static final double DAILY_MEAL_PRICE = 100.0;
+    @Value("${app.constants.daily-price:100.0}")
+    private double dailyPrice;
+
+    @Value("${app.constants.timezone:Europe/Istanbul}")
+    private String timezone;
 
     private final MonthlyReservationRepository reservationRepository;
     private final ReservationDayRepository reservationDayRepository;
@@ -31,7 +36,7 @@ public class AdminStatisticsService {
     // 1. Overview
     // -------------------------------------------------------------------------
     public AdminStatisticsOverviewDto getOverview() {
-        LocalDate today = LocalDate.now(ZoneId.of("Europe/Istanbul"));
+        LocalDate today = LocalDate.now(ZoneId.of(timezone));
         int currentYear  = today.getYear();
         int currentMonth = today.getMonthValue();
 
@@ -41,6 +46,7 @@ public class AdminStatisticsService {
         double totalRevenue        = reservationRepository.sumAllToplamTutar();
         double totalRefundAmount   = refundRecordRepository.findAll()
                                           .stream()
+                                          .filter(r -> !"Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
                                           .mapToDouble(r -> Optional.ofNullable(r.getIadeEdilen()).orElse(0.0))
                                           .sum();
         double netRevenue          = totalRevenue - totalRefundAmount;
@@ -74,7 +80,7 @@ public class AdminStatisticsService {
                             .dayOfWeek(date.getDayOfWeek()
                                     .getDisplayName(TextStyle.FULL, new Locale("tr")))
                             .reservationCount(count)
-                            .estimatedRevenue(count * DAILY_MEAL_PRICE)
+                            .estimatedRevenue(count * dailyPrice)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -107,7 +113,7 @@ public class AdminStatisticsService {
                             .menuName(menuName)
                             .serviceDate(date)
                             .reservationCount(count)
-                            .totalRevenue(count * DAILY_MEAL_PRICE)
+                            .totalRevenue(count * dailyPrice)
                             .percentageShare(percentage)
                             .build();
                 })
@@ -122,7 +128,9 @@ public class AdminStatisticsService {
 
         // Build refund map: (yil, ay) -> sum of refunds
         Map<String, Double> refundByMonth = new HashMap<>();
-        refundRecordRepository.findAll().forEach(r -> {
+        refundRecordRepository.findAll().stream()
+            .filter(r -> !"Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
+            .forEach(r -> {
             if (r.getTatilTarihi() != null) {
                 String key = r.getTatilTarihi().getYear() + "-" + r.getTatilTarihi().getMonthValue();
                 refundByMonth.merge(key, Optional.ofNullable(r.getIadeEdilen()).orElse(0.0), Double::sum);
@@ -162,6 +170,7 @@ public class AdminStatisticsService {
         double totalRev = reservationRepository.sumAllToplamTutar();
         double totalRef = refundRecordRepository.findAll()
                 .stream()
+                .filter(r -> !"Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
                 .mapToDouble(r -> Optional.ofNullable(r.getIadeEdilen()).orElse(0.0))
                 .sum();
 
@@ -184,6 +193,7 @@ public class AdminStatisticsService {
                 .filter(r -> r.getTatilTarihi() != null && !"Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
                 .count();
         double amount  = allRefunds.stream()
+                .filter(r -> !"Kullanıcı rezervasyon iptali".equals(r.getTatilAciklama()))
                 .mapToDouble(r -> Optional.ofNullable(r.getIadeEdilen()).orElse(0.0))
                 .sum();
 
@@ -203,7 +213,7 @@ public class AdminStatisticsService {
                         .dayOfWeek(e.getKey().getDayOfWeek()
                                 .getDisplayName(TextStyle.FULL, new Locale("tr")))
                         .reservationCount(e.getValue())
-                        .estimatedRevenue(e.getValue() * DAILY_MEAL_PRICE)
+                        .estimatedRevenue(e.getValue() * dailyPrice)
                         .build())
                 .collect(Collectors.toList());
 
@@ -236,7 +246,7 @@ public class AdminStatisticsService {
                         .dayOfWeek(e.getKey().getDayOfWeek()
                                 .getDisplayName(TextStyle.FULL, new Locale("tr")))
                         .reservationCount(e.getValue())
-                        .estimatedRevenue(e.getValue() * DAILY_MEAL_PRICE)
+                        .estimatedRevenue(e.getValue() * dailyPrice)
                         .build())
                 .collect(Collectors.toList());
     }
