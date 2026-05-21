@@ -12,6 +12,16 @@ const MyPayments = () => {
     const [activeTab, setActiveTab] = useState('payments');
     const [bulkLoading, setBulkLoading] = useState(false);
     const queryClient = useQueryClient();
+    const [transactionsQuery, refundsQuery] = useQueries({
+        queries: [
+            { queryKey: ['transactions', 'user', user?.id], queryFn: () => getUserTransactions(user.id), enabled: !!user?.id },
+            { queryKey: ['refunds', 'user', user?.id], queryFn: () => getUserRefunds(user.id), enabled: !!user?.id },
+        ],
+    });
+
+    const transactions = transactionsQuery.data ?? [];
+    const refunds = refundsQuery.data ?? [];
+    const loading = transactionsQuery.isLoading || refundsQuery.isLoading;
 
     const handleBulkMarkRefunded = useCallback(async () => {
         const pending = refunds.filter(r => !r.isRefunded);
@@ -28,16 +38,6 @@ const MyPayments = () => {
             setBulkLoading(false);
         }
     }, [refunds, queryClient, user]);
-    const [transactionsQuery, refundsQuery] = useQueries({
-        queries: [
-            { queryKey: ['transactions', 'user', user?.id], queryFn: () => getUserTransactions(user.id), enabled: !!user?.id },
-            { queryKey: ['refunds', 'user', user?.id], queryFn: () => getUserRefunds(user.id), enabled: !!user?.id },
-        ],
-    });
-
-    const transactions = transactionsQuery.data ?? [];
-    const refunds = refundsQuery.data ?? [];
-    const loading = transactionsQuery.isLoading || refundsQuery.isLoading;
 
     const paymentColumns = [
         { field: 'yil', header: 'Yıl' },
