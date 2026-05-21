@@ -7,6 +7,9 @@ backend/mvnw.cmd
 # Maven local (indirilen maven)
 backend/maven/
 
+# H2 Database files (local persistence)
+backend/data/
+
 # Node
 frontend/node_modules/
 frontend/dist/
