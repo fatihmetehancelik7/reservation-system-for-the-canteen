@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-    Users, UserPlus, Mail, Lock, User, Shield, CheckCircle2,
-    AlertTriangle, Eye, EyeOff, X, Search
+import { Users, UserPlus, Mail, Lock, User, Shield, CheckCircle2,
+    AlertTriangle, Eye, EyeOff, X, Search, FileText
 } from 'lucide-react';
-import { getAllUsers, createUser } from '../services/userService';
+import { getAllUsers, createUser, createUsersBatch } from '../services/userService';
+import * as XLSX from 'xlsx';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -207,6 +207,192 @@ const AddUserModal = ({ onClose, onSuccess }) => {
     );
 };
 
+// ─── Bulk Add User Modal ───────────────────────────────────────────────────────
+
+const BulkAddUserModal = ({ onClose, onSuccess }) => {
+    const [text, setText] = useState('');
+    const [serverError, setServerError] = useState('');
+    const [errors, setErrors] = useState('');
+    const fileInputRef = useRef(null);
+
+    const queryClient = useQueryClient();
+    const mutation = useMutation({
+        mutationFn: createUsersBatch,
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            onSuccess(data);
+        },
+        onError: (err) => {
+            setServerError(err.response?.data?.error || 'Toplu kullanıcı eklenemedi.');
+        },
+    });
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setServerError('');
+        setErrors('');
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const data = evt.target.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                
+                let extractedText = '';
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (i === 0) continue; // İlk satırı başlık varsayıp atlıyoruz
+                    
+                    if (row.length === 1 && typeof row[0] === 'string' && row[0].includes(',')) {
+                        // All data in a single comma-separated cell (Column A)
+                        const parts = row[0].split(',').map(p => p.trim());
+                        if (parts.length >= 3) {
+                            const ad = parts[0];
+                            const soyad = parts[1];
+                            const email = parts[2];
+                            const sifre = parts[3] || '123456';
+                            extractedText += `${ad}, ${soyad}, ${email}, ${sifre}\n`;
+                        }
+                    } else if (row.length >= 3) {
+                        // Data properly separated in columns
+                        const ad = row[0] || '';
+                        const soyad = row[1] || '';
+                        const email = row[2] || '';
+                        const sifre = row[3] || '123456';
+                        extractedText += `${ad}, ${soyad}, ${email}, ${sifre}\n`;
+                    }
+                }
+
+                if (!extractedText) {
+                    setErrors('Dosyada geçerli kullanıcı verisi bulunamadı.');
+                } else {
+                    setText(prev => prev + (prev && !prev.endsWith('\n') ? '\n' : '') + extractedText);
+                }
+            } catch (err) {
+                console.error(err);
+                setErrors('Dosya okunurken bir hata oluştu.');
+            }
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        };
+
+        if (file.name.endsWith('.xlsx')) {
+            reader.readAsBinaryString(file);
+        } else {
+            setErrors('Lütfen sadece .xlsx uzantılı Excel dosyası yükleyin.');
+        }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setServerError('');
+        setErrors('');
+
+        if (!text.trim()) {
+            setErrors('Lütfen en az bir kullanıcı bilgisi girin.');
+            return;
+        }
+
+        const lines = text.split('\n').filter(l => l.trim() !== '');
+        const parsedUsers = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const parts = lines[i].split(',').map(p => p.trim());
+            if (parts.length < 3) {
+                setErrors(`Satır ${i + 1} eksik bilgi içeriyor. Format: Ad, Soyad, Email, (Opsiyonel Şifre)`);
+                return;
+            }
+            parsedUsers.push({
+                ad: parts[0],
+                soyad: parts[1],
+                email: parts[2],
+                sifre: parts[3] || '123456',
+                rol: 'KULLANICI' // Varsayılan olarak KULLANICI
+            });
+        }
+
+        mutation.mutate(parsedUsers);
+    };
+
+    return (
+        <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease-out', backdropFilter: 'blur(4px)',
+        }}>
+            <div style={{
+                background: 'var(--surface)', borderRadius: 16, width: '100%', maxWidth: 520,
+                boxShadow: '0 25px 50px rgba(0,0,0,0.2)', overflow: 'hidden',
+                animation: 'slideUp 0.25s ease-out',
+            }}>
+                <div style={{
+                    background: 'linear-gradient(135deg, #1E1B4B 0%, var(--primary-dark) 100%)',
+                    padding: '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'white' }}>
+                        <Users size={22} />
+                        <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>Toplu Kullanıcı Ekle</span>
+                    </div>
+                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} style={{ padding: '1.75rem 2rem' }}>
+                    {serverError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, marginBottom: '1rem', color: '#991B1B', fontSize: '0.9rem' }}>
+                            <AlertTriangle size={16} /> {serverError}
+                        </div>
+                    )}
+                    {errors && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, marginBottom: '1rem', color: '#991B1B', fontSize: '0.9rem' }}>
+                            <AlertTriangle size={16} /> {errors}
+                        </div>
+                    )}
+
+                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                        <label className="form-label">Kullanıcı Bilgileri</label>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                            Excel dosyanızı (Başlık satırı: Ad, Soyad, Email, Sifre) yükleyebilir veya aşağıya virgülle ayırarak girebilirsiniz:<br/>
+                            <code>Ad, Soyad, Email, Sifre(Opsiyonel)</code>
+                        </p>
+                        
+                        <input 
+                            type="file" 
+                            accept=".xlsx" 
+                            onChange={handleFileUpload} 
+                            ref={fileInputRef}
+                            className="form-control"
+                            style={{ marginBottom: '1rem', padding: '0.5rem' }}
+                        />
+
+                        <textarea
+                            className="form-control"
+                            style={{ minHeight: '150px', fontFamily: 'monospace', padding: '1rem' }}
+                            value={text}
+                            onChange={(e) => setText(e.target.value)}
+                            placeholder="Ahmet, Yılmaz, ahmet@ornek.com, sifre123&#10;Ayşe, Demir, ayse@ornek.com"
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>
+                            İptal
+                        </button>
+                        <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={mutation.isPending}>
+                            {mutation.isPending ? 'Ekleniyor...' : 'Kullanıcıları Ekle'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 // ─── Success Toast ─────────────────────────────────────────────────────────────
 
 const Toast = ({ name, onClose }) => (
@@ -234,6 +420,7 @@ const Toast = ({ name, onClose }) => (
 
 const AdminUsers = () => {
     const [showModal, setShowModal]   = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false);
     const [toast, setToast]           = useState(null);   // { name }
     const [search, setSearch]         = useState('');
     const [roleFilter, setRoleFilter] = useState('ALL');
@@ -246,6 +433,12 @@ const AdminUsers = () => {
     const handleSuccess = (data) => {
         setShowModal(false);
         setToast({ name: `${data.ad} ${data.soyad}` });
+        setTimeout(() => setToast(null), 4000);
+    };
+
+    const handleBulkSuccess = (dataArray) => {
+        setShowBulkModal(false);
+        setToast({ name: `${dataArray.length} kullanıcı` });
         setTimeout(() => setToast(null), 4000);
     };
 
@@ -269,14 +462,23 @@ const AdminUsers = () => {
             {/* ── Page header ─────────────────────────────────────────────── */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h1 className="page-title" style={{ margin: 0 }}>Kullanıcı Yönetimi</h1>
-                <button
-                    id="btn-add-user"
-                    className="btn btn-primary"
-                    style={{ padding: '0.75rem 1.5rem', fontSize: '0.95rem' }}
-                    onClick={() => setShowModal(true)}
-                >
-                    <UserPlus size={18} /> Yeni Kullanıcı
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                        className="btn btn-secondary"
+                        style={{ padding: '0.75rem 1.5rem', fontSize: '0.95rem' }}
+                        onClick={() => setShowBulkModal(true)}
+                    >
+                        <FileText size={18} /> Toplu Ekle
+                    </button>
+                    <button
+                        id="btn-add-user"
+                        className="btn btn-primary"
+                        style={{ padding: '0.75rem 1.5rem', fontSize: '0.95rem' }}
+                        onClick={() => setShowModal(true)}
+                    >
+                        <UserPlus size={18} /> Yeni Kullanıcı
+                    </button>
+                </div>
             </div>
 
             {/* ── Summary cards ───────────────────────────────────────────── */}
@@ -394,6 +596,7 @@ const AdminUsers = () => {
 
             {/* ── Modal & Toast ─────────────────────────────────────────────── */}
             {showModal && <AddUserModal onClose={() => setShowModal(false)} onSuccess={handleSuccess} />}
+            {showBulkModal && <BulkAddUserModal onClose={() => setShowBulkModal(false)} onSuccess={handleBulkSuccess} />}
             {toast     && <Toast name={toast.name} onClose={() => setToast(null)} />}
         </div>
     );

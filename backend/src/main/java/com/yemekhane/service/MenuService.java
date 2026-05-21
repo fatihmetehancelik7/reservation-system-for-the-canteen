@@ -10,8 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -63,5 +65,42 @@ public class MenuService {
             throw new BusinessException("Bu güne ait rezervasyon bulunduğu için menü silinemez.");
         }
         menuRepository.deleteById(id);
+    }
+
+    public MonthlyMenuDto updateMenu(Long id, MonthlyMenuDto request) {
+        MonthlyMenu menu = menuRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Menü bulunamadı."));
+        
+        menu.setYemekListesi(request.getYemekListesi());
+        if (request.getAktifMi() != null) {
+            menu.setAktifMi(request.getAktifMi());
+        }
+        return MonthlyMenuDto.fromEntity(menuRepository.save(menu));
+    }
+
+    @Transactional
+    public List<MonthlyMenuDto> createMenus(List<MonthlyMenuDto> requests) {
+        List<MonthlyMenuDto> result = new ArrayList<>();
+        for (MonthlyMenuDto req : requests) {
+            try {
+                // Ignore weekends silently in batch
+                DayOfWeek day = req.getTarih().getDayOfWeek();
+                if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
+                    continue; 
+                }
+                // Ignore if exists silently in batch
+                if (menuRepository.findByTarih(req.getTarih()).isPresent()) {
+                    continue;
+                }
+                // Ignore holidays silently in batch
+                if (holidayRepository.findByTarih(req.getTarih()).isPresent()) {
+                    continue;
+                }
+                result.add(createMenu(req));
+            } catch (BusinessException e) {
+                // Ignore business exceptions for individual items in batch
+            }
+        }
+        return result;
     }
 }

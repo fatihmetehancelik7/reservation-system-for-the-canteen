@@ -10,3 +10,8 @@ export const createUser = async (userData) => {
     return response.data;
 };
 
+export const createUsersBatch = async (usersData) => {
+    const response = await api.post('/users/batch', usersData);
+    return response.data;
+};
+
