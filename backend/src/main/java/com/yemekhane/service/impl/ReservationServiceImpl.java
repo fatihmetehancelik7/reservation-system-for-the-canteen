@@ -242,7 +242,7 @@ public class ReservationServiceImpl implements ReservationService {
             refund.setUser(reservation.getUser());
             refund.setTatilTarihi(date);
             refund.setTatilAciklama("Kullanıcı rezervasyon iptali");
-            refund.setIadeEdilen(DAILY_PRICE);
+            refund.setIadeEdilen(0.0);
             refundRecordRepository.save(refund);
         }
     }

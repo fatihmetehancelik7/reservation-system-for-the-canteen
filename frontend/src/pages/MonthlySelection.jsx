@@ -192,30 +192,35 @@ const MonthlySelection = () => {
     const grandTotalDays = allMonthsBreakdown.reduce((s, x) => s + x.days, 0);
     const grandTotal     = grandTotalDays * 100;
 
-    // Henüz ödenmemiş (yeni rezervasyon bekleyen) aylar
+    // ── Payment Difference Calculation ──────────────────────────────────────
+    let paymentDifference = null;
+    if (isUpdateMode) {
+        const oldDayCount = (existingReservation?.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
+        const newDayCount = selectedDays.length;
+        const netDayDifference = newDayCount - oldDayCount;
+        const differenceAmount = netDayDifference * 100;
+        
+        let type = 'NO_DIFFERENCE';
+        if (differenceAmount > 0) type = 'PAYMENT_REQUIRED';
+        else if (differenceAmount < 0) type = 'REFUND_REQUIRED';
+
+        paymentDifference = {
+            month: selectedMonth,
+            oldDayCount,
+            newDayCount,
+            netDayDifference,
+            oldAmount: oldDayCount * 100,
+            newAmount: newDayCount * 100,
+            differenceAmount,
+            type
+        };
+    }
+
+    // Yalnızca yeni (update olmayan) bekleyen günlerin hesabı
     const pendingNewMonths = allMonthsBreakdown.filter(x => x.isPending && !x.existing);
-    const pendingNewTotal  = pendingNewMonths.reduce((s, x) => s + x.days * 100, 0);
-    const hasPendingNew    = pendingNewMonths.length > 0;
-
-    let pendingDiffAmount = 0;
-    let pendingDiffDays = 0;
-    const hasAnyPending = allMonthsBreakdown.some(x => x.isPending);
-
-    allMonthsBreakdown.forEach(item => {
-        if (!item.isPending) return;
-        if (!item.existing) {
-            pendingDiffDays += item.days;
-            pendingDiffAmount += (item.days * 100);
-        } else {
-            const existingDays = (item.existing.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
-            pendingDiffDays += (item.days - existingDays);
-            pendingDiffAmount += ((item.days - existingDays) * 100);
-        }
-    });
-
-    const isRefund = pendingDiffAmount < 0;
-    const absDiffAmount = Math.abs(pendingDiffAmount);
-    const absDiffDays = Math.abs(pendingDiffDays);
+    const pendingNewTotal = pendingNewMonths.reduce((s, x) => s + x.days * 100, 0);
+    const pendingNewDays = pendingNewMonths.reduce((s, x) => s + x.days, 0);
+    const hasPendingNew = pendingNewMonths.length > 0;
 
     // Tüm yeni ayları sırayla öde
     const [isPayingAll, setIsPayingAll] = useState(false);
@@ -337,43 +342,53 @@ const MonthlySelection = () => {
                     <Card title="Ödeme Özeti">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
 
-                            {/* Ödenecek / İade Edilecek Tutar (büyük banner) */}
+                            {/* Banner Gösterimi */}
                             <div style={{
-                                background: !hasAnyPending 
-                                    ? 'linear-gradient(135deg, var(--surface) 0%, #F3F4F6 100%)' 
-                                    : isRefund ? 'linear-gradient(135deg, #059669 0%, #10B981 100%)'
-                                    : 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)',
+                                background: isUpdateMode 
+                                    ? (paymentDifference.type === 'REFUND_REQUIRED' ? 'linear-gradient(135deg, #059669 0%, #10B981 100%)'
+                                       : paymentDifference.type === 'PAYMENT_REQUIRED' ? 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)'
+                                       : 'linear-gradient(135deg, var(--surface) 0%, #F3F4F6 100%)')
+                                    : (!hasPendingNew ? 'linear-gradient(135deg, var(--surface) 0%, #F3F4F6 100%)' : 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)'),
                                 borderRadius: 12, padding: '1rem 1.25rem',
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                border: !hasAnyPending ? '1px solid var(--border)' : 'none'
+                                border: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? '1px solid var(--border)' : 'none'
                             }}>
                                 <div>
                                     <div style={{ 
-                                        color: !hasAnyPending ? 'var(--text-muted)' : 'rgba(255,255,255,0.8)', 
+                                        color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? 'var(--text-muted)' : 'rgba(255,255,255,0.9)', 
                                         fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '0.15rem' 
                                     }}>
-                                        {!hasAnyPending ? 'GÜNCEL TOPLAM TUTAR' : isRefund ? 'İADE EDİLECEK TUTAR' : 'ÖDENECEK FARK TUTARI'}
+                                        {isUpdateMode 
+                                            ? (paymentDifference.type === 'REFUND_REQUIRED' ? 'İADE EDİLECEK TUTAR' 
+                                               : paymentDifference.type === 'PAYMENT_REQUIRED' ? 'ÖDENECEK FARK TUTARI' 
+                                               : 'ÖDEME VEYA İADE FARKI YOK')
+                                            : (!hasPendingNew ? 'GÜNCEL TOPLAM TUTAR' : 'ÖDENECEK TOPLAM TUTAR')
+                                        }
                                     </div>
                                     <div style={{ 
-                                        color: !hasAnyPending ? 'var(--text-main)' : 'white', 
+                                        color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? 'var(--text-main)' : 'white', 
                                         fontSize: '2rem', fontWeight: 800, lineHeight: 1 
                                     }}>
-                                        {!hasAnyPending ? grandTotal.toLocaleString('tr-TR') : absDiffAmount.toLocaleString('tr-TR')} TL
+                                        {isUpdateMode 
+                                            ? Math.abs(paymentDifference.differenceAmount).toLocaleString('tr-TR')
+                                            : (!hasPendingNew ? grandTotal.toLocaleString('tr-TR') : pendingNewTotal.toLocaleString('tr-TR'))
+                                        } TL
                                     </div>
                                     <div style={{ 
-                                        color: !hasAnyPending ? 'var(--text-muted)' : 'rgba(255,255,255,0.72)', 
+                                        color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? 'var(--text-muted)' : 'rgba(255,255,255,0.8)', 
                                         fontSize: '0.8rem', marginTop: '0.25rem' 
                                     }}>
-                                        {!hasAnyPending 
-                                            ? `${grandTotalDays} gün · ${allMonthsBreakdown.length} ay` 
-                                            : absDiffDays > 0 ? `${isRefund ? '-' : '+'}${absDiffDays} gün` : 'Gün farkı yok'
+                                        {isUpdateMode 
+                                            ? (paymentDifference.type === 'NO_DIFFERENCE' ? 'Gün farkı yok' 
+                                               : `${paymentDifference.type === 'REFUND_REQUIRED' ? '-' : '+'}${Math.abs(paymentDifference.netDayDifference)} gün`)
+                                            : (!hasPendingNew ? `${grandTotalDays} gün · ${allMonthsBreakdown.length} ay` : `+${pendingNewDays} gün eklendi`)
                                         }
                                     </div>
                                 </div>
-                                <CreditCard size={38} style={{ color: !hasAnyPending ? '#D1D5DB' : 'rgba(255,255,255,0.35)' }} />
+                                <CreditCard size={38} style={{ color: (isUpdateMode && paymentDifference.type === 'NO_DIFFERENCE') || (!isUpdateMode && !hasPendingNew) ? '#D1D5DB' : 'rgba(255,255,255,0.35)' }} />
                             </div>
 
-                            {/* Ay ay döküm (tıklanabilir) */}
+                            {/* Ay ay döküm listesi */}
                             <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                                 {allMonthsBreakdown.length === 0 ? (
                                     <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
@@ -383,15 +398,22 @@ const MonthlySelection = () => {
                                     const isCur  = month === selectedMonth;
                                     const isNew  = isPending && !existing;
                                     const isEdit = isPending && !!existing;
+                                    const isDisabled = isUpdateMode && !isCur; // Güncelleme modunda diğer aylar devre dışı
+
                                     return (
                                         <div key={month}
-                                            onClick={() => isEdit && setSelectedMonth(month)}
+                                            onClick={() => {
+                                                if (isEdit && !isUpdateMode) setSelectedMonth(month);
+                                            }}
                                             style={{
                                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                padding: '0.55rem 0.85rem', cursor: isEdit ? 'pointer' : 'default',
+                                                padding: '0.55rem 0.85rem', 
+                                                cursor: (isEdit && !isUpdateMode) ? 'pointer' : 'default',
                                                 background: isCur ? '#EEF2FF' : 'var(--surface)',
                                                 borderBottom: idx < allMonthsBreakdown.length - 1 ? '1px solid var(--border)' : 'none',
-                                                transition: 'background 0.15s',
+                                                opacity: isDisabled ? 0.4 : 1,
+                                                pointerEvents: isDisabled ? 'none' : 'auto',
+                                                transition: 'background 0.15s, opacity 0.15s',
                                             }}
                                         >
                                             <span style={{ fontSize: '0.88rem', color: isCur ? 'var(--primary)' : 'var(--text-main)', fontWeight: isCur ? 700 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -408,8 +430,8 @@ const MonthlySelection = () => {
                                 })}
                             </div>
 
-                            {/* Tümünü Öde (yeni aylar için) */}
-                            {hasPendingNew && (
+                            {/* Tümünü Öde (Yalnızca Yeni Rezervasyonlar Modu) */}
+                            {!isUpdateMode && hasPendingNew && (
                                 <button
                                     className="btn btn-primary"
                                     style={{ width: '100%', padding: '0.95rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
@@ -424,7 +446,7 @@ const MonthlySelection = () => {
                                 </button>
                             )}
 
-                            {/* Güncelle / iptal (mevcut rezervasyon) */}
+                            {/* Güncelle / İptal (Mevcut Rezervasyon Modu) */}
                             {isUpdateMode && (
                                 <>
                                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
@@ -432,27 +454,44 @@ const MonthlySelection = () => {
                                             {monthName(selectedMonth).toUpperCase()} – GÜNCELLEME
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
-                                            <span>Önceki tutar:</span><span>{oldTotalPrice} TL</span>
+                                            <span>Önceki tutar:</span><span>{paymentDifference.oldAmount.toLocaleString('tr-TR')} TL</span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.3rem', color: difference < 0 ? '#059669' : difference > 0 ? '#DC2626' : 'var(--text-muted)' }}>
-                                            <span>Fark:</span>
-                                            <span>{difference > 0 ? `+${difference}` : difference} TL</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                                            <span>Yeni tutar:</span><span>{paymentDifference.newAmount.toLocaleString('tr-TR')} TL</span>
                                         </div>
-                                        {difference < 0 && <div style={{ fontSize: '0.75rem', color: '#059669' }}>* İade edilecek tutar</div>}
-                                        {difference > 0 && <div style={{ fontSize: '0.75rem', color: '#DC2626' }}>* Ek ödeme alınacaktır</div>}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.3rem', color: paymentDifference.type === 'REFUND_REQUIRED' ? '#059669' : paymentDifference.type === 'PAYMENT_REQUIRED' ? '#DC2626' : 'var(--text-muted)' }}>
+                                            <span>Net Fark:</span>
+                                            <span>{paymentDifference.differenceAmount > 0 ? `+${paymentDifference.differenceAmount}` : paymentDifference.differenceAmount} TL</span>
+                                        </div>
+                                        {paymentDifference.type === 'REFUND_REQUIRED' && <div style={{ fontSize: '0.75rem', color: '#059669' }}>* İade edilecek tutar hesabınıza yansıtılacaktır.</div>}
+                                        {paymentDifference.type === 'PAYMENT_REQUIRED' && <div style={{ fontSize: '0.75rem', color: '#DC2626' }}>* Güncelleme için ek ödeme alınacaktır.</div>}
                                     </div>
-                                    <button
-                                        className="btn btn-secondary"
-                                        style={{ width: '100%', padding: '0.75rem', fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                        disabled={isSaving}
-                                        onClick={handlePayment}
-                                    >
-                                        <CreditCard size={16} />
-                                        {isSaving ? 'İşleniyor...' : selectedDays.length === 0
-                                            ? `${monthName(selectedMonth)} – Tümünü İptal Et`
-                                            : `${monthName(selectedMonth)} – Güncelle`
-                                        }
-                                    </button>
+                                    
+                                    {paymentDifference.type !== 'REFUND_REQUIRED' ? (
+                                        <button
+                                            className="btn btn-secondary"
+                                            style={{ width: '100%', padding: '0.75rem', fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                            disabled={isSaving}
+                                            onClick={handlePayment}
+                                        >
+                                            <CreditCard size={16} />
+                                            {isSaving ? 'İşleniyor...' 
+                                                : paymentDifference.type === 'NO_DIFFERENCE' ? 'Güncellemeyi Kaydet'
+                                                : selectedDays.length === 0 ? `${monthName(selectedMonth)} – Tümünü İptal Et`
+                                                : `Farkı Öde – ${paymentDifference.differenceAmount} TL`
+                                            }
+                                        </button>
+                                    ) : (
+                                        <button
+                                            className="btn btn-secondary"
+                                            style={{ width: '100%', padding: '0.75rem', fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#059669', color: 'white', border: 'none' }}
+                                            disabled={isSaving}
+                                            onClick={handlePayment}
+                                        >
+                                            <Check size={16} />
+                                            {isSaving ? 'İşleniyor...' : 'Güncellemeyi Kaydet (İade Oluşturulacak)'}
+                                        </button>
+                                    )}
                                 </>
                             )}
 
