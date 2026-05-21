@@ -197,6 +197,26 @@ const MonthlySelection = () => {
     const pendingNewTotal  = pendingNewMonths.reduce((s, x) => s + x.days * 100, 0);
     const hasPendingNew    = pendingNewMonths.length > 0;
 
+    let pendingDiffAmount = 0;
+    let pendingDiffDays = 0;
+    const hasAnyPending = allMonthsBreakdown.some(x => x.isPending);
+
+    allMonthsBreakdown.forEach(item => {
+        if (!item.isPending) return;
+        if (!item.existing) {
+            pendingDiffDays += item.days;
+            pendingDiffAmount += (item.days * 100);
+        } else {
+            const existingDays = (item.existing.secilenGunler ?? []).filter(d => !holidays.includes(d)).length;
+            pendingDiffDays += (item.days - existingDays);
+            pendingDiffAmount += ((item.days - existingDays) * 100);
+        }
+    });
+
+    const isRefund = pendingDiffAmount < 0;
+    const absDiffAmount = Math.abs(pendingDiffAmount);
+    const absDiffDays = Math.abs(pendingDiffDays);
+
     // Tüm yeni ayları sırayla öde
     const [isPayingAll, setIsPayingAll] = useState(false);
     const handlePayAllPending = async () => {
@@ -317,24 +337,40 @@ const MonthlySelection = () => {
                     <Card title="Ödeme Özeti">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
 
-                            {/* Toplam Tutar (büyük banner) */}
+                            {/* Ödenecek / İade Edilecek Tutar (büyük banner) */}
                             <div style={{
-                                background: 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)',
+                                background: !hasAnyPending 
+                                    ? 'linear-gradient(135deg, var(--surface) 0%, #F3F4F6 100%)' 
+                                    : isRefund ? 'linear-gradient(135deg, #059669 0%, #10B981 100%)'
+                                    : 'linear-gradient(135deg, var(--primary) 0%, #818CF8 100%)',
                                 borderRadius: 12, padding: '1rem 1.25rem',
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                border: !hasAnyPending ? '1px solid var(--border)' : 'none'
                             }}>
                                 <div>
-                                    <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '0.15rem' }}>
-                                        TOPLAM TUTAR
+                                    <div style={{ 
+                                        color: !hasAnyPending ? 'var(--text-muted)' : 'rgba(255,255,255,0.8)', 
+                                        fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '0.15rem' 
+                                    }}>
+                                        {!hasAnyPending ? 'GÜNCEL TOPLAM TUTAR' : isRefund ? 'İADE EDİLECEK TUTAR' : 'ÖDENECEK FARK TUTARI'}
                                     </div>
-                                    <div style={{ color: 'white', fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
-                                        {grandTotal.toLocaleString('tr-TR')} TL
+                                    <div style={{ 
+                                        color: !hasAnyPending ? 'var(--text-main)' : 'white', 
+                                        fontSize: '2rem', fontWeight: 800, lineHeight: 1 
+                                    }}>
+                                        {!hasAnyPending ? grandTotal.toLocaleString('tr-TR') : absDiffAmount.toLocaleString('tr-TR')} TL
                                     </div>
-                                    <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                                        {grandTotalDays} gün · {allMonthsBreakdown.length} ay
+                                    <div style={{ 
+                                        color: !hasAnyPending ? 'var(--text-muted)' : 'rgba(255,255,255,0.72)', 
+                                        fontSize: '0.8rem', marginTop: '0.25rem' 
+                                    }}>
+                                        {!hasAnyPending 
+                                            ? `${grandTotalDays} gün · ${allMonthsBreakdown.length} ay` 
+                                            : absDiffDays > 0 ? `${isRefund ? '-' : '+'}${absDiffDays} gün` : 'Gün farkı yok'
+                                        }
                                     </div>
                                 </div>
-                                <CreditCard size={38} style={{ color: 'rgba(255,255,255,0.35)' }} />
+                                <CreditCard size={38} style={{ color: !hasAnyPending ? '#D1D5DB' : 'rgba(255,255,255,0.35)' }} />
                             </div>
 
                             {/* Ay ay döküm (tıklanabilir) */}
