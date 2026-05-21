@@ -35,7 +35,7 @@ Yemekhane Rezervasyon Sistemi, kurum çalışanlarının aylık yemek rezervasyo
 
 | Özellik | Açıklama |
 |---------|----------|
-| **Aylık Rezervasyon** | Takvimden hafta içi günleri seçerek rezervasyon oluşturma |
+| **Aylık Rezervasyon** | Takvimden hafta içi günleri seçerek rezervasyon oluşturma; günlerin altında o günkü yemek listesinin önizlemesi görüntülenir |
 | **Çoklu Ay Seçimi** | Haziran, Temmuz, Ağustos gibi birden fazla ay seçilip tek butonla ödeme yapılabilir |
 | **Toplam Tutar Görünümü** | Tüm seçili ayların genel toplamı ve ay ay döküm paneli |
 | **Rezervasyon Güncelleme** | Mevcut rezervasyona gün eklenip çıkarılabilir, fark tutarı gösterilir |
@@ -271,6 +271,7 @@ Tüm API uç noktaları `http://localhost:8080/api` altında tanımlıdır.
 - Günlük yemek ücreti **100 TL** sabittir.
 - Yalnızca **hafta içi** günler seçilebilir (Cumartesi-Pazar kapalı).
 - **Bugün ve önceki günler** için rezervasyon oluşturulamaz / değiştirilemez (kilitli).
+- **Zaman Güvenliği (Timezone Security):** Kullanıcının cihaz saati değiştirilse bile, sistem güncel saati internet üzerinden (API) ve sunucu tarafında mutlak olarak `Europe/Istanbul` (UTC+3) baz alarak denetler. Sahte tarih işlemleri engellenir.
 - Menü tanımlanmamış günler takvimde pasif görünür.
 - Tatil ilan edilen günler kırmızı olarak işaretlenir.
 
