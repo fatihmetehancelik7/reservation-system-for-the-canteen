@@ -30,8 +30,8 @@ public interface MonthlyReservationRepository extends JpaRepository<MonthlyReser
     @Query("SELECT COALESCE(SUM(mr.toplamTutar), 0) FROM MonthlyReservation mr")
     double sumAllToplamTutar();
 
-    // Monthly stats: [yil, ay, count, sum]
-    @Query("SELECT mr.yil, mr.ay, COUNT(mr), COALESCE(SUM(mr.toplamTutar), 0) FROM MonthlyReservation mr GROUP BY mr.yil, mr.ay ORDER BY mr.yil, mr.ay")
+    // Monthly stats: [yil, ay, count (sum of days), sum]
+    @Query("SELECT mr.yil, mr.ay, COALESCE(SUM(mr.secilenGunSayisi), 0), COALESCE(SUM(mr.toplamTutar), 0) FROM MonthlyReservation mr GROUP BY mr.yil, mr.ay ORDER BY mr.yil, mr.ay")
     List<Object[]> findMonthlyStats();
 
     // Count reservations in current month

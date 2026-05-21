@@ -333,7 +333,7 @@ const AdminStatistics = () => {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                                         <thead>
                                             <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                                                {['Ay', 'Rezervasyon', 'Gelir', 'İade', 'Net Gelir'].map(h => (
+                                                {['Ay', 'Toplam Rezerve Gün', 'Gelir', 'İade', 'Net Gelir'].map(h => (
                                                     <th key={h} style={{ textAlign: 'left', padding: '0.4rem 0.6rem', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
                                                 ))}
                                             </tr>
