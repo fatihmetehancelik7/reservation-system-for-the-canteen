@@ -4,9 +4,6 @@ Kurumsal yemekhaneler için geliştirilmiş tam yığınlı (full-stack) bir rez
 
 Sistem; aylık yemek rezervasyonlarını, çoklu ay ödeme toplamlarını, tatil günü yönetimini, otomatik iade kayıtlarını, kullanıcı yönetimini ve yönetici istatistik panelini tek bir platformda sunar.
 
-> **Canlı Repo:** [github.com/fatihmetehancelik7/reservation-system-for-the-canteen](https://github.com/fatihmetehancelik7/reservation-system-for-the-canteen)
-
----
 
 ## İçindekiler
 
