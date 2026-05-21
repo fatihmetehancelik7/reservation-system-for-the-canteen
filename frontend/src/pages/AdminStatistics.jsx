@@ -86,22 +86,23 @@ const BarChartSvg = ({ data, valueKey, labelKey, color = '#4F46E5', height = 160
     if (!data || data.length === 0) return <EmptyState message="Gösterilecek veri yok." />;
     const max = Math.max(...data.map(d => d[valueKey]));
     const barW = Math.max(20, Math.floor(440 / data.length) - 6);
+    const topPadding = 20;
 
     return (
         <div style={{ overflowX: 'auto' }}>
-            <svg width={Math.max(440, data.length * (barW + 6) + 40)} height={height + 40} style={{ display: 'block' }}>
+            <svg width={Math.max(440, data.length * (barW + 6) + 40)} height={height + topPadding + 20} style={{ display: 'block' }}>
                 {data.map((d, i) => {
                     const barH = max > 0 ? Math.max(4, Math.round((d[valueKey] / max) * height)) : 4;
                     const x = 20 + i * (barW + 6);
-                    const y = height - barH;
+                    const y = topPadding + height - barH;
                     return (
                         <g key={i}>
                             <rect x={x} y={y} width={barW} height={barH} fill={color} rx={4} opacity={0.85} />
-                            <text x={x + barW / 2} y={height + 14} textAnchor="middle"
+                            <text x={x + barW / 2} y={topPadding + height + 14} textAnchor="middle"
                                 fontSize={10} fill="var(--text-muted)" fontFamily="Outfit,sans-serif">
                                 {d[labelKey]?.toString().slice(-5)}
                             </text>
-                            <text x={x + barW / 2} y={y - 4} textAnchor="middle"
+                            <text x={x + barW / 2} y={y - 6} textAnchor="middle"
                                 fontSize={10} fill={color} fontWeight="700" fontFamily="Outfit,sans-serif">
                                 {d[valueKey]}
                             </text>
