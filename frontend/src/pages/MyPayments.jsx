@@ -29,8 +29,8 @@ const MyPayments = () => {
             render: (row) => new Date(row.yil, row.ay - 1, 1).toLocaleDateString('tr-TR', { month: 'long' })
         },
         { field: 'islemTarihi', header: 'İşlem Tarihi', render: (row) => new Date(row.islemTarihi).toLocaleString('tr-TR') },
-        { field: 'islemGunSayisi', header: 'Gün Sayısı Farkı', render: (row) => row.islemGunSayisi > 0 ? `+${row.islemGunSayisi} Gün` : `${row.islemGunSayisi} Gün` },
-        { field: 'islemTutari', header: 'Tutar (TL)', render: (row) => row.islemTutari > 0 ? `+${row.islemTutari} TL` : `${row.islemTutari} TL` },
+        { field: 'islemGunSayisi', header: 'Gün Sayısı Farkı', render: (row) => row.islemTipi === 'İPTAL' ? `-${Math.abs(row.islemGunSayisi)} Gün` : `+${row.islemGunSayisi} Gün` },
+        { field: 'islemTutari', header: 'Tutar (TL)', render: (row) => row.islemTipi === 'İPTAL' ? `-${row.islemTutari} TL` : `+${row.islemTutari} TL` },
         {
             field: 'islemTipi',
             header: 'İşlem Tipi',
@@ -80,8 +80,13 @@ const MyPayments = () => {
         }
     ];
 
-    const totalPaid = transactions.reduce((sum, r) => sum + r.islemTutari, 0);
-    const totalRefunded = refunds.reduce((sum, r) => sum + r.iadeEdilen, 0);
+    const holidayRefunds = refunds.filter(r => r.tatilAciklama !== 'Kullanıcı rezervasyon iptali');
+    
+    const totalPaid = transactions.reduce((sum, r) => {
+        if (r.islemTipi === 'İPTAL') return sum - r.islemTutari;
+        return sum + r.islemTutari;
+    }, 0);
+    const totalRefunded = holidayRefunds.reduce((sum, r) => sum + r.iadeEdilen, 0);
 
     const tabStyle = (tab) => ({
         padding: '0.65rem 1.5rem',
@@ -138,7 +143,7 @@ const MyPayments = () => {
                 </Card>
             </div>
 
-            {refunds.length > 0 && (
+            {holidayRefunds.length > 0 && (
                 <div style={{
                     background: 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
                     border: '1px solid #34D399',
@@ -153,7 +158,7 @@ const MyPayments = () => {
                     <AlertTriangle size={20} color="#10B981" />
                     <div>
                         <strong>Tatil İade Bildirimi:</strong> Rezervasyon yaptığınız{' '}
-                        <strong>{refunds.length} gün</strong> tatil ilan edilmiş olup toplamda{' '}
+                        <strong>{holidayRefunds.length} gün</strong> tatil ilan edilmiş olup toplamda{' '}
                         <strong>{totalRefunded} TL</strong> iade alacaksınız.
                         Detaylar için "İadelerim" sekmesine bakınız.
                     </div>
@@ -166,8 +171,8 @@ const MyPayments = () => {
                         <CreditCard size={18} /> Ödemelerim ({transactions.length})
                     </button>
                     <button style={tabStyle('refunds')} onClick={() => setActiveTab('refunds')}>
-                        <RefreshCcw size={18} /> İadelerim ({refunds.length})
-                        {refunds.length > 0 && (
+                        <RefreshCcw size={18} /> İadelerim ({holidayRefunds.length})
+                        {holidayRefunds.length > 0 && (
                             <span style={{
                                 background: '#EF4444',
                                 color: 'white',
@@ -180,7 +185,7 @@ const MyPayments = () => {
                                 justifyContent: 'center',
                                 fontWeight: 'bold'
                             }}>
-                                {refunds.length}
+                                {holidayRefunds.length}
                             </span>
                         )}
                     </button>
@@ -193,13 +198,13 @@ const MyPayments = () => {
                 ) : activeTab === 'payments' ? (
                     <Table columns={paymentColumns} data={transactions} />
                 ) : (
-                    refunds.length === 0 ? (
+                    holidayRefunds.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                             <RefreshCcw size={40} style={{ marginBottom: '1rem', opacity: 0.3 }} />
                             <p>Henüz iade bulunmamaktadır.</p>
                         </div>
                     ) : (
-                        <Table columns={refundColumns} data={refunds} />
+                        <Table columns={refundColumns} data={holidayRefunds} />
                     )
                 )}
             </Card>
