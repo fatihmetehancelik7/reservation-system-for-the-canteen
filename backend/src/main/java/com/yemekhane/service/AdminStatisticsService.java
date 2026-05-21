@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.ZoneId;
 import java.time.format.TextStyle;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,7 +31,7 @@ public class AdminStatisticsService {
     // 1. Overview
     // -------------------------------------------------------------------------
     public AdminStatisticsOverviewDto getOverview() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Istanbul"));
         int currentYear  = today.getYear();
         int currentMonth = today.getMonthValue();
 
