@@ -26,7 +26,8 @@ const MonthlySelection = () => {
                 return ist.toISOString().split('T')[0];
             }
         },
-        staleTime: 1000 * 60 * 60,
+        staleTime: 1000 * 60, // 1 dakika
+        refetchInterval: 1000 * 60, // her 1 dakikada bir otomatik yenile
     });
     
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);

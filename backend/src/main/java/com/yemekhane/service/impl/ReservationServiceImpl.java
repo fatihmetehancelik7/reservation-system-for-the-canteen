@@ -4,6 +4,7 @@ import com.yemekhane.dto.MonthlyReservationDto;
 import com.yemekhane.dto.ReservationRequest;
 import com.yemekhane.entity.MonthlyReservation;
 import com.yemekhane.entity.PaymentStatus;
+import com.yemekhane.entity.PaymentTransaction;
 import com.yemekhane.entity.RefundRecord;
 import com.yemekhane.entity.ReservationDay;
 import com.yemekhane.entity.Role;
@@ -12,6 +13,7 @@ import com.yemekhane.exception.BusinessException;
 import com.yemekhane.repository.HolidayRepository;
 import com.yemekhane.repository.MonthlyMenuRepository;
 import com.yemekhane.repository.MonthlyReservationRepository;
+import com.yemekhane.repository.PaymentTransactionRepository;
 import com.yemekhane.repository.RefundRecordRepository;
 import com.yemekhane.repository.UserRepository;
 import com.yemekhane.service.ReservationService;
@@ -40,6 +42,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final HolidayRepository holidayRepository;
     private final RefundRecordRepository refundRecordRepository;
     private final UserRepository userRepository;
+    private final PaymentTransactionRepository transactionRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -85,7 +88,19 @@ public class ReservationServiceImpl implements ReservationService {
         List<ReservationDay> days = buildReservationDays(request, reservation, user);
         reservation.setReservationDays(days);
 
-        return MonthlyReservationDto.fromEntity(reservationRepository.save(reservation));
+        MonthlyReservation savedReservation = reservationRepository.save(reservation);
+
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.setUser(user);
+        transaction.setYil(request.getYil());
+        transaction.setAy(request.getAy());
+        transaction.setIslemTarihi(savedReservation.getIslemTarihi());
+        transaction.setIslemGunSayisi(savedReservation.getSecilenGunSayisi());
+        transaction.setIslemTutari(savedReservation.getToplamTutar());
+        transaction.setIslemTipi("YENİ REZERVASYON");
+        transactionRepository.save(transaction);
+
+        return MonthlyReservationDto.fromEntity(savedReservation);
     }
 
     @Override
@@ -100,6 +115,11 @@ public class ReservationServiceImpl implements ReservationService {
 
         validateReservationRequest(request, reservation);
         createRefundsForCancelledDays(reservation, request);
+
+        int oldDays = reservation.getSecilenGunSayisi() != null ? reservation.getSecilenGunSayisi() : 0;
+        int newDays = request.getSecilenGunler().size();
+        int diffDays = newDays - oldDays;
+
         applyReservationValues(reservation, request);
 
         if (reservation.getReservationDays() == null) {
@@ -110,7 +130,21 @@ public class ReservationServiceImpl implements ReservationService {
 
         reservation.getReservationDays().addAll(buildReservationDays(request, reservation, reservation.getUser()));
 
-        return MonthlyReservationDto.fromEntity(reservationRepository.save(reservation));
+        MonthlyReservation savedReservation = reservationRepository.save(reservation);
+
+        if (diffDays != 0) {
+            PaymentTransaction transaction = new PaymentTransaction();
+            transaction.setUser(reservation.getUser());
+            transaction.setYil(request.getYil());
+            transaction.setAy(request.getAy());
+            transaction.setIslemTarihi(savedReservation.getIslemTarihi());
+            transaction.setIslemGunSayisi(diffDays);
+            transaction.setIslemTutari(diffDays * DAILY_PRICE);
+            transaction.setIslemTipi(diffDays > 0 ? "EK ÖDEME" : "İPTAL");
+            transactionRepository.save(transaction);
+        }
+
+        return MonthlyReservationDto.fromEntity(savedReservation);
     }
 
     private void applyReservationValues(MonthlyReservation reservation, ReservationRequest request) {

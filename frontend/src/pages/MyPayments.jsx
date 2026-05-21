@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
-import { getUserReservations } from '../services/reservationService';
+import { getUserTransactions } from '../services/reservationService';
 import { getUserRefunds } from '../services/holidayService';
 import Card from '../components/Card';
 import Table from '../components/Table';
@@ -10,16 +10,16 @@ import { CreditCard, RefreshCcw, AlertTriangle } from 'lucide-react';
 const MyPayments = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('payments');
-    const [reservationsQuery, refundsQuery] = useQueries({
+    const [transactionsQuery, refundsQuery] = useQueries({
         queries: [
-            { queryKey: ['reservations', 'user', user?.id], queryFn: () => getUserReservations(user.id), enabled: !!user?.id },
+            { queryKey: ['transactions', 'user', user?.id], queryFn: () => getUserTransactions(user.id), enabled: !!user?.id },
             { queryKey: ['refunds', 'user', user?.id], queryFn: () => getUserRefunds(user.id), enabled: !!user?.id },
         ],
     });
 
-    const reservations = reservationsQuery.data ?? [];
+    const transactions = transactionsQuery.data ?? [];
     const refunds = refundsQuery.data ?? [];
-    const loading = reservationsQuery.isLoading || refundsQuery.isLoading;
+    const loading = transactionsQuery.isLoading || refundsQuery.isLoading;
 
     const paymentColumns = [
         { field: 'yil', header: 'Yıl' },
@@ -29,16 +29,22 @@ const MyPayments = () => {
             render: (row) => new Date(row.yil, row.ay - 1, 1).toLocaleDateString('tr-TR', { month: 'long' })
         },
         { field: 'islemTarihi', header: 'İşlem Tarihi', render: (row) => new Date(row.islemTarihi).toLocaleString('tr-TR') },
-        { field: 'secilenGunSayisi', header: 'Seçilen Gün' },
-        { field: 'toplamTutar', header: 'Tutar (TL)', render: (row) => `${row.toplamTutar} TL` },
+        { field: 'islemGunSayisi', header: 'Gün Sayısı Farkı', render: (row) => row.islemGunSayisi > 0 ? `+${row.islemGunSayisi} Gün` : `${row.islemGunSayisi} Gün` },
+        { field: 'islemTutari', header: 'Tutar (TL)', render: (row) => row.islemTutari > 0 ? `+${row.islemTutari} TL` : `${row.islemTutari} TL` },
         {
-            field: 'odemeDurumu',
-            header: 'Durum',
-            render: (row) => (
-                <span style={{ padding: '0.25rem 0.5rem', background: '#D1FAE5', color: '#065F46', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
-                    {row.odemeDurumu}
-                </span>
-            )
+            field: 'islemTipi',
+            header: 'İşlem Tipi',
+            render: (row) => {
+                let bg = '#F3F4F6'; let color = '#4B5563';
+                if (row.islemTipi === 'YENİ REZERVASYON') { bg = '#D1FAE5'; color = '#065F46'; }
+                else if (row.islemTipi === 'EK ÖDEME') { bg = '#DBEAFE'; color = '#1E40AF'; }
+                else if (row.islemTipi === 'İPTAL') { bg = '#FEE2E2'; color = '#991B1B'; }
+                return (
+                    <span style={{ padding: '0.25rem 0.5rem', background: bg, color, borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+                        {row.islemTipi}
+                    </span>
+                );
+            }
         }
     ];
 
@@ -74,7 +80,7 @@ const MyPayments = () => {
         }
     ];
 
-    const totalPaid = reservations.reduce((sum, r) => sum + r.toplamTutar, 0);
+    const totalPaid = transactions.reduce((sum, r) => sum + r.islemTutari, 0);
     const totalRefunded = refunds.reduce((sum, r) => sum + r.iadeEdilen, 0);
 
     const tabStyle = (tab) => ({
@@ -146,7 +152,7 @@ const MyPayments = () => {
             <Card>
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
                     <button style={tabStyle('payments')} onClick={() => setActiveTab('payments')}>
-                        <CreditCard size={18} /> Ödemelerim ({reservations.length})
+                        <CreditCard size={18} /> Ödemelerim ({transactions.length})
                     </button>
                     <button style={tabStyle('refunds')} onClick={() => setActiveTab('refunds')}>
                         <RefreshCcw size={18} /> İadelerim ({refunds.length})
@@ -169,12 +175,12 @@ const MyPayments = () => {
                     </button>
                 </div>
 
-                {reservationsQuery.isError || refundsQuery.isError ? (
+                {transactionsQuery.isError || refundsQuery.isError ? (
                     <div className="text-danger">Ödeme ve iade verileri yüklenirken hata oluştu.</div>
                 ) : loading ? (
                     <p>Yükleniyor...</p>
                 ) : activeTab === 'payments' ? (
-                    <Table columns={paymentColumns} data={reservations} />
+                    <Table columns={paymentColumns} data={transactions} />
                 ) : (
                     refunds.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
