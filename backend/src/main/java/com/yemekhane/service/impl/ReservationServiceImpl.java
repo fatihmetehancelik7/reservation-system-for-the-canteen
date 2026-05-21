@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.List;
@@ -118,6 +119,7 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setSecilenGunSayisi(request.getSecilenGunler().size());
         reservation.setToplamTutar(request.getSecilenGunler().size() * DAILY_PRICE);
         reservation.setOdemeDurumu(PaymentStatus.ODENDI);
+        reservation.setIslemTarihi(LocalDateTime.now(ZoneId.of("Europe/Istanbul")));
     }
 
     private List<ReservationDay> buildReservationDays(ReservationRequest request, MonthlyReservation reservation, User user) {
