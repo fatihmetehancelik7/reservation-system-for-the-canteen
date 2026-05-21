@@ -308,22 +308,22 @@ Veritabanı dosyaları `.gitignore` ile versiyon kontrolü dışında tutulur:
 backend/data/
 ```
 
-### Proje İçi Maven Kullanımı
+### İstatistik ve Raporlama Mantığı
 
-`backend/maven/` klasöründe Apache Maven 3.9.6 dağıtımı bulunur. Sisteme Maven kurulum gerekmeden doğrudan kullanılabilir.
-
----
+- Sistemde **"En Çok Rezerve Edilen Menüler"** istatistiği, kullanıcılardan alınan doğrudan puanlamalarla (1-5 yıldız gibi) değil, o günkü menülerin rezervasyon sayısıyla hesaplanmaktadır. İlerleyen geliştirmelerde menülere puanlama sistemi eklenebilir.
 
 ## Üretim Ortamı İçin Öneriler
 
-| Alan | Öneri |
+Bu proje, geliştirme hızı ve demo kolaylığı açısından bazı esnekliklere (örneğin düz metin şifreler, H2 veritabanı, frontend tabanlı rol koruması) sahiptir. Üretim ortamına geçerken **kesinlikle** yapılması gerekenler şunlardır:
+
+| Alan | Öneri ve Gerekçe |
 |------|-------|
-| Veritabanı | H2 yerine PostgreSQL veya MySQL kullanılmalıdır |
-| Kimlik Doğrulama | JWT tabanlı güvenli auth mekanizması eklenmeli |
-| Şifreler | Üretimde BCrypt ile hashlenmelidir |
-| CORS | Yalnızca izin verilen domainler tanımlanmalıdır |
-| Yapılandırma | Hassas bilgiler environment variable ile yönetilmeli |
-| Build | Backend ve frontend için CI/CD pipeline kurulmalıdır |
+| **Veritabanı** | H2 dosya veritabanı yerine ölçeklenebilir ve eşzamanlı işlemi destekleyen **PostgreSQL** veya **MySQL** kullanılmalıdır. |
+| **Kimlik Doğrulama** | Frontend tabanlı auth (React Router koruması) güvenli değildir. Backend'e **Spring Security + JWT (JSON Web Token)** mekanizması entegre edilerek tüm API uç noktaları güvence altına alınmalıdır. |
+| **Şifreleme** | Kullanıcı şifreleri veritabanına kaydedilmeden önce **BCrypt** gibi bir algoritma ile özetlenmelidir (hashlenmelidir). |
+| **CORS Ayarları** | Backend tarafında sadece üretim frontend domainlerine istek izni tanımlanmalıdır. |
+| **Yapılandırma** | Gizli anahtarlar, JWT token sırları ve veritabanı bilgileri kod içerisinden alınıp **Environment Variable (.env)** dosyalarına taşınmalıdır. |
+| **Sunucu** | Frontend (React) için **NGINX**, Backend için Docker/Kubernetes container yapısı tercih edilmeli ve CI/CD süreçleri oluşturulmalıdır. |
 
 ---
 
