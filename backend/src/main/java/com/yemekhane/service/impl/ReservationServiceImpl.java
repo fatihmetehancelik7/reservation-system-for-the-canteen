@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -147,7 +148,7 @@ public class ReservationServiceImpl implements ReservationService {
             throw new BusinessException("Aynı gün birden fazla seçilemez.");
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Istanbul"));
         for (LocalDate date : uniqueDates) {
             if (date == null) {
                 throw new BusinessException("Seçilen günler boş olamaz.");
@@ -193,7 +194,7 @@ public class ReservationServiceImpl implements ReservationService {
         List<LocalDate> cancelledDates = reservation.getReservationDays().stream()
                 .map(ReservationDay::getTarih)
                 .filter(date -> !requestedDates.contains(date))
-                .filter(date -> date.isAfter(LocalDate.now()))
+                .filter(date -> date.isAfter(LocalDate.now(ZoneId.of("Europe/Istanbul"))))
                 .collect(Collectors.toList());
 
         for (LocalDate date : cancelledDates) {

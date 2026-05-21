@@ -11,6 +11,24 @@ const MonthlySelection = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const currentYear = 2026;
+
+    const timeQuery = useQuery({
+        queryKey: ['istanbulTime'],
+        queryFn: async () => {
+            try {
+                const res = await fetch('http://worldtimeapi.org/api/timezone/Europe/Istanbul');
+                const data = await res.json();
+                return data.datetime.split('T')[0];
+            } catch (err) {
+                const d = new Date();
+                const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+                const ist = new Date(utc + (3600000 * 3));
+                return ist.toISOString().split('T')[0];
+            }
+        },
+        staleTime: 1000 * 60 * 60,
+    });
+    
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
     const [selectedDaysByMonth, setSelectedDaysByMonth] = useState({});
     const [error, setError] = useState('');
@@ -81,9 +99,8 @@ const MonthlySelection = () => {
     const toggleDaySelection = (dateStr, isHoliday, hasMenu) => {
         if (isHoliday || !hasMenu) return;
 
-        const now = new Date();
-        const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
-        const todayStr = localNow.toISOString().split('T')[0];
+        const todayStr = timeQuery.data;
+        if (!todayStr) return; // wait for time
 
         if (existingReservation && dateStr <= todayStr) {
             return;
@@ -240,10 +257,8 @@ const MonthlySelection = () => {
                             {days.map(day => {
                                 const isSelected = selectedDays.includes(day.dateStr);
                                 const isClickable = !day.isHoliday && day.menu;
-                                const now = new Date();
-                                const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
-                                const todayStr = localNow.toISOString().split('T')[0];
-                                const isLocked = day.dateStr <= todayStr;
+                                const todayStr = timeQuery.data;
+                                const isLocked = todayStr ? day.dateStr <= todayStr : true;
 
                                 let bg = '#F9FAFB';
                                 let border = '1px solid #E5E7EB';
@@ -271,9 +286,14 @@ const MonthlySelection = () => {
                                     >
                                         <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{day.dayNum}</div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{day.dayName}</div>
-                                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+                                        <div style={{ marginTop: '0.4rem', fontSize: '0.85rem', fontWeight: '600' }}>
                                             {day.isHoliday ? 'Tatil' : day.menu ? '100 TL' : 'Menü Yok'}
                                         </div>
+                                        {day.menu && !day.isHoliday && (
+                                            <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.3', wordBreak: 'break-word' }}>
+                                                {day.menu.yemekListesi}
+                                            </div>
+                                        )}
                                         {isSelected && (
                                             <div style={{ color: 'var(--primary)', marginTop: '0.25rem' }}>
                                                 <Check size={16} style={{ margin: '0 auto' }} />

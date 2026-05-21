@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "refund_records")
@@ -27,7 +28,7 @@ public class RefundRecord {
     private LocalDateTime islemTarihi;   // When the refund was processed
 
     @PrePersist
-    protected void onCreate() {
-        this.islemTarihi = LocalDateTime.now();
+    public void prePersist() {
+        this.islemTarihi = LocalDateTime.now(ZoneId.of("Europe/Istanbul"));
     }
 }

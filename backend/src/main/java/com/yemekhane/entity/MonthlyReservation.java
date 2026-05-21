@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "monthly_reservations")
@@ -32,5 +33,5 @@ public class MonthlyReservation {
     @OneToMany(mappedBy = "monthlyReservation", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<ReservationDay> reservationDays;
 
-    private LocalDateTime islemTarihi = LocalDateTime.now();
+    private LocalDateTime islemTarihi = LocalDateTime.now(ZoneId.of("Europe/Istanbul"));
 }
