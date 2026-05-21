@@ -262,10 +262,6 @@ public class ReservationServiceImpl implements ReservationService {
                 .collect(Collectors.toList());
 
         for (LocalDate date : cancelledDates) {
-            if (refundRecordRepository.existsByUserIdAndTatilTarihi(reservation.getUser().getId(), date)) {
-                continue;
-            }
-
             RefundRecord refund = new RefundRecord();
             refund.setUser(reservation.getUser());
             refund.setTatilTarihi(date);
