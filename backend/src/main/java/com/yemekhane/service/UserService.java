@@ -7,6 +7,10 @@ import com.yemekhane.entity.Role;
 import com.yemekhane.entity.User;
 import com.yemekhane.exception.BusinessException;
 import com.yemekhane.repository.UserRepository;
+import com.yemekhane.repository.MonthlyReservationRepository;
+import com.yemekhane.repository.ReservationDayRepository;
+import com.yemekhane.repository.PaymentTransactionRepository;
+import com.yemekhane.repository.RefundRecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +20,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class UserService {
-
     private final UserRepository userRepository;
+    private final MonthlyReservationRepository monthlyReservationRepository;
+    private final ReservationDayRepository reservationDayRepository;
+    private final PaymentTransactionRepository paymentTransactionRepository;
+    private final RefundRecordRepository refundRecordRepository;
 
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream()
@@ -53,5 +60,41 @@ public class UserService {
         return requests.stream()
                 .map(this::createUser)
                 .collect(Collectors.toList());
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public UserDto updateUser(Long id, UserDto dto) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Kullanıcı bulunamadı"));
+
+        if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
+            if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+                throw new BusinessException("Bu e-posta adresi zaten kullanımda.");
+            }
+            user.setEmail(dto.getEmail());
+        }
+
+        if (dto.getAd() != null) user.setAd(dto.getAd());
+        if (dto.getSoyad() != null) user.setSoyad(dto.getSoyad());
+        if (dto.getSifre() != null) user.setSifre(dto.getSifre());
+        if (dto.getRol() != null) user.setRol(dto.getRol());
+
+        return UserDto.fromEntity(userRepository.save(user));
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteUser(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new BusinessException("Kullanıcı bulunamadı");
+        }
+        
+        // Önce ilişkili tüm verileri sil (foreign key hatalarını önlemek için)
+        reservationDayRepository.deleteByUserId(id);
+        monthlyReservationRepository.deleteByUserId(id);
+        paymentTransactionRepository.deleteByUserId(id);
+        refundRecordRepository.deleteByUserId(id);
+        
+        // En son kullanıcıyı sil
+        userRepository.deleteById(id);
     }
 }
