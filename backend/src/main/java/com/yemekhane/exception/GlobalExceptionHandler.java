@@ -1,5 +1,7 @@
 package com.yemekhane.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +13,8 @@ import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Map<String, String>> handleBusinessException(BusinessException ex) {
@@ -25,15 +29,16 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(error -> error.getDefaultMessage())
-                .orElse("Geçersiz istek.");
+                .orElse("Gecersiz istek.");
         response.put("error", message);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleException(Exception ex) {
+        log.error("Unexpected server error", ex);
         Map<String, String> response = new HashMap<>();
-        response.put("error", "Sunucu hatası: " + ex.getMessage());
+        response.put("error", "Beklenmeyen bir sunucu hatasi olustu.");
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
