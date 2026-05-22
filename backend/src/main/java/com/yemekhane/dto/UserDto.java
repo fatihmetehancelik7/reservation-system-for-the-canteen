@@ -10,8 +10,9 @@ public class UserDto {
     private String ad;
     private String soyad;
     private String email;
-    private String sifre;   // only used on create, never returned
+    private String sifre;   // only used on create/update, never returned
     private Role rol;
+    private Boolean active;
 
     public static UserDto fromEntity(User user) {
         UserDto dto = new UserDto();
@@ -20,6 +21,7 @@ public class UserDto {
         dto.setSoyad(user.getSoyad());
         dto.setEmail(user.getEmail());
         dto.setRol(user.getRol());
+        dto.setActive(user.getActive());
         return dto;
     }
 }
