@@ -1,19 +1,18 @@
 package com.yemekhane.controller;
 
+import com.yemekhane.dto.BulkReservationRequest;
 import com.yemekhane.dto.MonthlyReservationDto;
 import com.yemekhane.dto.ReservationRequest;
 import com.yemekhane.entity.Role;
-import com.yemekhane.entity.User;
 import com.yemekhane.exception.BusinessException;
+import com.yemekhane.security.UserDetailsImpl;
 import com.yemekhane.service.ReservationService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
-import com.yemekhane.security.UserDetailsImpl;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -31,37 +30,71 @@ public class ReservationController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<MonthlyReservationDto>> getUserReservations(@PathVariable Long userId, HttpServletRequest httpRequest) {
-        assertUserCanAccess(userId, httpRequest);
+    public ResponseEntity<List<MonthlyReservationDto>> getUserReservations(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetailsImpl authenticatedUser) {
+        assertUserCanAccess(userId, authenticatedUser);
         return ResponseEntity.ok(reservationService.getUserReservations(userId));
     }
 
     @PostMapping("/reserve")
-    public ResponseEntity<MonthlyReservationDto> createReservation(@Valid @RequestBody ReservationRequest request, HttpServletRequest httpRequest) {
-        assertUserCanAccess(request.getUserId(), httpRequest);
+    public ResponseEntity<MonthlyReservationDto> createReservation(
+            @Valid @RequestBody ReservationRequest request,
+            @AuthenticationPrincipal UserDetailsImpl authenticatedUser) {
+        bindRequestToAuthenticatedUser(request, authenticatedUser);
         return ResponseEntity.ok(reservationService.createMonthlyReservation(request));
     }
 
     @PostMapping("/bulk")
-    public ResponseEntity<List<MonthlyReservationDto>> processBulkReservations(@Valid @RequestBody com.yemekhane.dto.BulkReservationRequest request, HttpServletRequest httpRequest) {
-        assertUserCanAccess(request.getUserId(), httpRequest);
+    public ResponseEntity<List<MonthlyReservationDto>> processBulkReservations(
+            @Valid @RequestBody BulkReservationRequest request,
+            @AuthenticationPrincipal UserDetailsImpl authenticatedUser) {
+        bindRequestToAuthenticatedUser(request, authenticatedUser);
         return ResponseEntity.ok(reservationService.processBulkReservations(request));
     }
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<MonthlyReservationDto> updateReservation(@PathVariable Long id, @Valid @RequestBody ReservationRequest request, HttpServletRequest httpRequest) {
-        assertUserCanAccess(request.getUserId(), httpRequest);
+    public ResponseEntity<MonthlyReservationDto> updateReservation(
+            @PathVariable Long id,
+            @Valid @RequestBody ReservationRequest request,
+            @AuthenticationPrincipal UserDetailsImpl authenticatedUser) {
+        bindRequestToAuthenticatedUser(request, authenticatedUser);
         return ResponseEntity.ok(reservationService.updateMonthlyReservation(id, request));
     }
 
-    private void assertUserCanAccess(Long userId, HttpServletRequest request) {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal == null || "anonymousUser".equals(principal)) {
-            throw new BusinessException("Oturum bulunamadı.");
+    private void bindRequestToAuthenticatedUser(ReservationRequest request, UserDetailsImpl authenticatedUser) {
+        UserDetailsImpl currentUser = requireAuthenticatedUser(authenticatedUser);
+        if (currentUser.getRoleEnum() != Role.ADMIN) {
+            request.setUserId(currentUser.getId());
+            return;
         }
-        UserDetailsImpl authenticatedUser = (UserDetailsImpl) principal;
-        if (authenticatedUser.getRoleEnum() != Role.ADMIN && !authenticatedUser.getId().equals(userId)) {
+        if (request.getUserId() == null) {
+            throw new BusinessException("Kullanıcı bilgisi zorunludur.");
+        }
+    }
+
+    private void bindRequestToAuthenticatedUser(BulkReservationRequest request, UserDetailsImpl authenticatedUser) {
+        UserDetailsImpl currentUser = requireAuthenticatedUser(authenticatedUser);
+        if (currentUser.getRoleEnum() != Role.ADMIN) {
+            request.setUserId(currentUser.getId());
+            return;
+        }
+        if (request.getUserId() == null) {
+            throw new BusinessException("Kullanıcı bilgisi zorunludur.");
+        }
+    }
+
+    private void assertUserCanAccess(Long userId, UserDetailsImpl authenticatedUser) {
+        UserDetailsImpl currentUser = requireAuthenticatedUser(authenticatedUser);
+        if (currentUser.getRoleEnum() != Role.ADMIN && !currentUser.getId().equals(userId)) {
             throw new BusinessException("Başka bir kullanıcının verilerine erişemezsiniz.");
         }
+    }
+
+    private UserDetailsImpl requireAuthenticatedUser(UserDetailsImpl authenticatedUser) {
+        if (authenticatedUser == null) {
+            throw new BusinessException("Oturum bulunamadı.");
+        }
+        return authenticatedUser;
     }
 }
