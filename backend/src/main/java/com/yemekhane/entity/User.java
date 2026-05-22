@@ -17,12 +17,15 @@ public class User {
 
     private String ad;
     private String soyad;
-    
+
     @Column(unique = true, nullable = false)
     private String email;
-    
+
     private String sifre;
-    
+
     @Enumerated(EnumType.STRING)
     private Role rol;
+
+    @Column(nullable = false)
+    private Boolean active = true;
 }
