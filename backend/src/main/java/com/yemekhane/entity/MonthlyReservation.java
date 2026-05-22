@@ -8,7 +8,12 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 @Entity
-@Table(name = "monthly_reservations")
+@Table(
+    name = "monthly_reservations",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_monthly_reservation_user_year_month", columnNames = {"user_id", "yil", "ay"})
+    }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,6 +21,9 @@ public class MonthlyReservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -28,7 +36,7 @@ public class MonthlyReservation {
     private Double toplamTutar;
 
     @Enumerated(EnumType.STRING)
-    private PaymentStatus odemeDurumu = PaymentStatus.ODENDI;
+    private PaymentStatus odemeDurumu = PaymentStatus.PAID;
 
     @OneToMany(mappedBy = "monthlyReservation", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<ReservationDay> reservationDays;
