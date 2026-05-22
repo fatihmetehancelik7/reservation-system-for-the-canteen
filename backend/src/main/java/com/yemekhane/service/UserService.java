@@ -7,10 +7,6 @@ import com.yemekhane.entity.Role;
 import com.yemekhane.entity.User;
 import com.yemekhane.exception.BusinessException;
 import com.yemekhane.repository.UserRepository;
-import com.yemekhane.repository.MonthlyReservationRepository;
-import com.yemekhane.repository.ReservationDayRepository;
-import com.yemekhane.repository.PaymentTransactionRepository;
-import com.yemekhane.repository.RefundRecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,16 +24,12 @@ import com.yemekhane.security.UserDetailsImpl;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final MonthlyReservationRepository monthlyReservationRepository;
-    private final ReservationDayRepository reservationDayRepository;
-    private final PaymentTransactionRepository paymentTransactionRepository;
-    private final RefundRecordRepository refundRecordRepository;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
 
     public List<UserDto> getAllUsers() {
-        return userRepository.findAll().stream()
+        return userRepository.findByActiveTrue().stream()
                 .map(UserDto::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -62,6 +54,7 @@ public class UserService {
         u.setEmail(request.getEmail());
         u.setSifre(passwordEncoder.encode(request.getSifre() != null ? request.getSifre() : "123456"));
         u.setRol(request.getRol() != null ? request.getRol() : Role.KULLANICI);
+        u.setActive(true);
         return UserDto.fromEntity(userRepository.save(u));
     }
 
@@ -76,6 +69,10 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Kullanıcı bulunamadı"));
 
+        if (Boolean.FALSE.equals(user.getActive())) {
+            throw new BusinessException("Pasif kullanıcı güncellenemez.");
+        }
+
         if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
             if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
                 throw new BusinessException("Bu e-posta adresi zaten kullanımda.");
@@ -87,23 +84,17 @@ public class UserService {
         if (dto.getSoyad() != null) user.setSoyad(dto.getSoyad());
         if (dto.getSifre() != null && !dto.getSifre().isEmpty()) user.setSifre(passwordEncoder.encode(dto.getSifre()));
         if (dto.getRol() != null) user.setRol(dto.getRol());
+        if (dto.getActive() != null) user.setActive(dto.getActive());
 
         return UserDto.fromEntity(userRepository.save(user));
     }
 
     @org.springframework.transaction.annotation.Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new BusinessException("Kullanıcı bulunamadı");
-        }
-        
-        // Önce ilişkili tüm verileri sil (foreign key hatalarını önlemek için)
-        reservationDayRepository.deleteByUserId(id);
-        monthlyReservationRepository.deleteByUserId(id);
-        paymentTransactionRepository.deleteByUserId(id);
-        refundRecordRepository.deleteByUserId(id);
-        
-        // En son kullanıcıyı sil
-        userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Kullanıcı bulunamadı"));
+
+        user.setActive(false);
+        userRepository.save(user);
     }
 }
