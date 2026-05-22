@@ -17,12 +17,13 @@ public class UserDetailsImpl implements UserDetails {
     @JsonIgnore
     private String password;
     private Collection<? extends GrantedAuthority> authorities;
-    
+
     private String ad;
     private String soyad;
     private com.yemekhane.entity.Role roleEnum;
+    private Boolean active;
 
-    public UserDetailsImpl(Long id, String email, String password, Collection<? extends GrantedAuthority> authorities, String ad, String soyad, com.yemekhane.entity.Role roleEnum) {
+    public UserDetailsImpl(Long id, String email, String password, Collection<? extends GrantedAuthority> authorities, String ad, String soyad, com.yemekhane.entity.Role roleEnum, Boolean active) {
         this.id = id;
         this.email = email;
         this.password = password;
@@ -30,6 +31,7 @@ public class UserDetailsImpl implements UserDetails {
         this.ad = ad;
         this.soyad = soyad;
         this.roleEnum = roleEnum;
+        this.active = active;
     }
 
     public static UserDetailsImpl build(User user) {
@@ -42,7 +44,8 @@ public class UserDetailsImpl implements UserDetails {
                 Collections.singletonList(authority),
                 user.getAd(),
                 user.getSoyad(),
-                user.getRol()
+                user.getRol(),
+                user.getActive()
         );
     }
 
@@ -64,11 +67,11 @@ public class UserDetailsImpl implements UserDetails {
     public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() { return Boolean.TRUE.equals(active); }
 
     @Override
     public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() { return Boolean.TRUE.equals(active); }
 }
