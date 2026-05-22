@@ -18,7 +18,7 @@ import { getAllHolidays, getAllRefunds, getUserRefunds } from './services/holida
 import { getAllReservations, getUserReservations } from './services/reservationService';
 import { getAllUsers } from './services/userService';
 
-const currentYear = 2026;
+const currentYear = Number(import.meta.env.VITE_ACTIVE_YEAR || new Date().getFullYear());
 const currentMonth = new Date().getMonth() + 1;
 
 const getStoredUser = () => {
