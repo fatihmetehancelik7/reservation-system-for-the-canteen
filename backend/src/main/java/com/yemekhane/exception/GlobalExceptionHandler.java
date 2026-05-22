@@ -2,6 +2,8 @@ package com.yemekhane.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -32,6 +34,22 @@ public class GlobalExceptionHandler {
                 .orElse("Gecersiz istek.");
         response.put("error", message);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrityException(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation", ex);
+        Map<String, String> response = new HashMap<>();
+        response.put("error", "Veri butunlugu kurali ihlal edildi. Kayit zaten mevcut olabilir.");
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, String>> handleOptimisticLockingException(OptimisticLockingFailureException ex) {
+        log.warn("Concurrent update conflict", ex);
+        Map<String, String> response = new HashMap<>();
+        response.put("error", "Kayit baska bir islem tarafindan degistirildi. Lutfen sayfayi yenileyip tekrar deneyin.");
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(Exception.class)
