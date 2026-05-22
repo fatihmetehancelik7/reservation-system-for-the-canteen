@@ -237,15 +237,7 @@ public class ReservationServiceImpl implements ReservationService {
                     .limit(netCancelledCount)
                     .collect(Collectors.toList());
 
-            for (LocalDate date : datesToRefund) {
-                RefundRecord refund = new RefundRecord();
-                refund.setUser(user);
-                refund.setTatilTarihi(date);
-                refund.setTatilAciklama("Kullanıcı rezervasyon iptali");
-                refund.setIadeEdilen(dailyPrice);
-                refund.setIsRefunded(false);
-                refundRecordRepository.save(refund);
-            }
+            refundRecordRepository.saveAll(buildRefundRecords(user, datesToRefund));
             savedReservations.forEach(reservation -> reservation.setOdemeDurumu(PaymentStatus.REFUND_PENDING));
         }
 
@@ -293,6 +285,20 @@ public class ReservationServiceImpl implements ReservationService {
                     day.setUser(user);
                     day.setTarih(date);
                     return day;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<RefundRecord> buildRefundRecords(User user, List<LocalDate> datesToRefund) {
+        return datesToRefund.stream()
+                .map(date -> {
+                    RefundRecord refund = new RefundRecord();
+                    refund.setUser(user);
+                    refund.setTatilTarihi(date);
+                    refund.setTatilAciklama("Kullanıcı rezervasyon iptali");
+                    refund.setIadeEdilen(dailyPrice);
+                    refund.setIsRefunded(false);
+                    return refund;
                 })
                 .collect(Collectors.toList());
     }
@@ -367,14 +373,6 @@ public class ReservationServiceImpl implements ReservationService {
                 .limit(netCancelledCount)
                 .collect(Collectors.toList());
 
-        for (LocalDate date : netCancelledDates) {
-            RefundRecord refund = new RefundRecord();
-            refund.setUser(reservation.getUser());
-            refund.setTatilTarihi(date);
-            refund.setTatilAciklama("Kullanıcı rezervasyon iptali");
-            refund.setIadeEdilen(dailyPrice);
-            refund.setIsRefunded(false);
-            refundRecordRepository.save(refund);
-        }
+        refundRecordRepository.saveAll(buildRefundRecords(reservation.getUser(), netCancelledDates));
     }
 }
