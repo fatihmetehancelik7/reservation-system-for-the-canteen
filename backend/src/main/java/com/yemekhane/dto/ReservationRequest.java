@@ -13,8 +13,6 @@ public class ReservationRequest {
     private Long userId;
 
     @NotNull(message = "Yıl zorunludur.")
-    @Min(value = 2026, message = "Sistem yalnızca 2026 yılı için çalışmaktadır.")
-    @Max(value = 2026, message = "Sistem yalnızca 2026 yılı için çalışmaktadır.")
     private Integer yil;
 
     @NotNull(message = "Ay zorunludur.")
