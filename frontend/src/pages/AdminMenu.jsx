@@ -159,7 +159,7 @@ const AdminMenu = () => {
                             } else if (typeof dateVal === 'string') {
                                 dateVal = dateVal.trim();
                                 // Eğer format D.M.YYYY veya DD.MM.YYYY ise dönüştür
-                                const match = dateVal.match(/^(\d{1,2})[\.\/](\d{1,2})[\.\/](\d{4})$/);
+                                const match = dateVal.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
                                 if (match) {
                                     dateVal = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
                                 }
