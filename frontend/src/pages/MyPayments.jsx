@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { getUserTransactions } from '../services/reservationService';
@@ -20,7 +20,7 @@ const MyPayments = () => {
     });
 
     const transactions = transactionsQuery.data ?? [];
-    const refunds = refundsQuery.data ?? [];
+    const refunds = useMemo(() => refundsQuery.data ?? [], [refundsQuery.data]);
     const loading = transactionsQuery.isLoading || refundsQuery.isLoading;
 
     const handleBulkMarkRefunded = useCallback(async () => {
@@ -32,7 +32,7 @@ const MyPayments = () => {
         try {
             await Promise.all(pending.map(r => markRefunded(r.id)));
             queryClient.invalidateQueries(['refunds', 'user', user.id]);
-        } catch (e) {
+        } catch {
             alert('Toplu işlem sırasında hata oluştu.');
         } finally {
             setBulkLoading(false);
@@ -107,7 +107,7 @@ const MyPayments = () => {
                                 try {
                                     await markRefunded(row.id);
                                     queryClient.invalidateQueries(['refunds', 'user', user.id]);
-                                } catch (e) {
+                                } catch {
                                     alert('İşlem başarısız.');
                                 }
                             }

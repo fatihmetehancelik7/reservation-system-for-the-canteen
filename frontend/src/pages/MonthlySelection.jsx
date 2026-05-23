@@ -19,7 +19,7 @@ const MonthlySelection = () => {
                 const res = await fetch('http://worldtimeapi.org/api/timezone/Europe/Istanbul');
                 const data = await res.json();
                 return data.datetime.split('T')[0];
-            } catch (err) {
+            } catch {
                 const d = new Date();
                 const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
                 const ist = new Date(utc + (3600000 * 3));
